@@ -1,0 +1,29 @@
+#!/usr/local/bin/bpftrace
+/*
+ * javathreads - Trace thread start and stop events.
+ *
+ * See BPF Performance Tools, Chapter 12, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+      printf("%-20s  %6s/%-5s -- %s\n", "TIME", "PID", "TID", "THREAD");
+}
+
+usdt:/.../libjvm.so:hotspot:thread__start
+{
+	time("%H:%M:%S ");
+	printf("%6d/%-5d => %s\n", pid, tid, str(arg0, arg1));
+}
+
+usdt:/.../libjvm.so:hotspot:thread__stop
+{
+	time("%H:%M:%S ");
+	printf("%6d/%-5d <= %s\n", pid, tid, str(arg0, arg1));
+}

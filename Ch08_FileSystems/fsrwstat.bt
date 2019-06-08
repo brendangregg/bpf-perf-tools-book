@@ -1,0 +1,38 @@
+#!/usr/local/bin/bpftrace
+/*
+ * fsrwstat - Show VFS reads/writes by file system type.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/fs.h>
+
+BEGIN
+{
+	printf("Tracing VFS reads and writes... Hit Ctrl-C to end.\n");
+}
+
+kprobe:vfs_read,
+kprobe:vfs_readv,
+kprobe:vfs_write,
+kprobe:vfs_writev
+{
+	@[str(((struct file *)arg0)->f_inode->i_sb->s_type->name), func] =
+	    count();
+}
+
+interval:s:1
+{
+	time(); print(@); clear(@);
+}
+
+END
+{
+	clear(@);
+}

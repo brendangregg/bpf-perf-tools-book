@@ -1,0 +1,24 @@
+#!/usr/local/bin/bpftrace
+/*
+ * bufgrow - Buffer cache growth by process and bytes.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/fs.h>
+
+kprobe:add_to_page_cache_lru
+{
+	$a = (struct address_space *)arg1;
+	$m = $a->host->i_mode;
+	// match block mode, uapi/linux/stat.h:
+	if ($m & 0x6000) {
+		@kb[comm] = sum(4);	// page size
+	}
+}

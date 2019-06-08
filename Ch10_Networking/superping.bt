@@ -1,0 +1,103 @@
+#!/usr/local/bin/bpftrace
+/*
+ * superping - Measure ICMP echo times from the network stack.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/skbuff.h>
+#include <linux/icmp.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/in.h>
+
+BEGIN
+{
+	printf("Tracing ICMP ping latency. Hit Ctrl-C to end.\n");
+}
+
+/*
+ * IPv4
+ */
+kprobe:ip_send_skb
+{
+	$skb = (struct sk_buff *)arg1;
+	// get IPv4 header; see skb_network_header():
+	$iph = (struct iphdr *)($skb->head + $skb->network_header);
+	if ($iph->protocol == IPPROTO_ICMP) {
+		// get ICMP header; see skb_transport_header():
+		$icmph = (struct icmphdr *)($skb->head +
+		    $skb->transport_header);
+		if ($icmph->type == ICMP_ECHO) {
+			$id = $icmph->un.echo.id;
+			$seq = $icmph->un.echo.sequence;
+			@start[$id, $seq] = nsecs;
+		}
+	}
+}
+
+kprobe:icmp_rcv
+{
+	$skb = (struct sk_buff *)arg0;
+	// get ICMP header; see skb_transport_header():
+	$icmph = (struct icmphdr *)($skb->head + $skb->transport_header);
+	if ($icmph->type == ICMP_ECHOREPLY) {
+		$id = $icmph->un.echo.id;
+		$seq = $icmph->un.echo.sequence;
+		$start = @start[$id, $seq];
+		if ($start > 0) {
+			$idhost = ($id >> 8) | (($id << 8) & 0xff00);
+			$seqhost = ($seq >> 8) | (($seq << 8) & 0xff00);
+			printf("IPv4 ping, ID %d seq %d: %d us\n",
+			    $idhost, $seqhost, (nsecs - $start) / 1000);
+			delete(@start[$id, $seq]);
+		}
+	}
+}
+
+/*
+ * IPv6
+ */
+kprobe:ip6_send_skb
+{
+	$skb = (struct sk_buff *)arg0;
+	// get IPv6 header; see skb_network_header():
+	$ip6h = (struct ipv6hdr *)($skb->head + $skb->network_header);
+	if ($ip6h->nexthdr == IPPROTO_ICMPV6) {
+		// get ICMP header; see skb_transport_header():
+		$icmp6h = (struct icmp6hdr *)($skb->head +
+		    $skb->transport_header);
+		if ($icmp6h->icmp6_type == ICMPV6_ECHO_REQUEST) {
+			$id = $icmp6h->icmp6_dataun.u_echo.identifier;
+			$seq = $icmp6h->icmp6_dataun.u_echo.sequence;
+			@start[$id, $seq] = nsecs;
+		}
+	}
+}
+
+kprobe:icmpv6_rcv
+{
+	$skb = (struct sk_buff *)arg0;
+	// get ICMPv6 header; see skb_transport_header():
+	$icmp6h = (struct icmp6hdr *)($skb->head + $skb->transport_header);
+	if ($icmp6h->icmp6_type == ICMPV6_ECHO_REPLY) {
+		$id = $icmp6h->icmp6_dataun.u_echo.identifier;
+		$seq = $icmp6h->icmp6_dataun.u_echo.sequence;
+		$start = @start[$id, $seq];
+		if ($start > 0) {
+			$idhost = ($id >> 8) | (($id << 8) & 0xff00);
+			$seqhost = ($seq >> 8) | (($seq << 8) & 0xff00);
+			printf("IPv6 ping, ID %d seq %d: %d us\n",
+			    $idhost, $seqhost, (nsecs - $start) / 1000);
+			delete(@start[$id, $seq]);
+		}
+	}
+}
+
+END { clear(@start); }

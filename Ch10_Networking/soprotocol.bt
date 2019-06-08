@@ -1,0 +1,38 @@
+#!/usr/local/bin/bpftrace
+/*
+ * soprotocol - Counts transport protocols for new sockets by process.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <net/sock.h>
+
+BEGIN
+{
+	printf("Tracing socket connect/accepts. Ctrl-C to end.\n");
+	// from include/uapi/linux/in.h:
+	@prot2str[IPPROTO_IP] = "IPPROTO_IP";
+	@prot2str[IPPROTO_ICMP] = "IPPROTO_ICMP";
+	@prot2str[IPPROTO_TCP] = "IPPROTO_TCP";
+	@prot2str[IPPROTO_UDP] = "IPPROTO_UDP";
+}
+
+kprobe:security_socket_accept,
+kprobe:security_socket_connect
+{
+	$sock = (struct socket *)arg0;
+	$protocol = $sock->sk->sk_protocol & 0xff;
+	@connect[comm, $protocol, @prot2str[$protocol],
+	    $sock->sk->__sk_common.skc_prot->name] = count();
+}
+
+END
+{
+	clear(@prot2str);
+}

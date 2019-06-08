@@ -1,0 +1,31 @@
+#!/usr/local/bin/bpftrace
+/*
+ * cpustolen - Show CPU stolen time distribution.
+ *
+ * See BPF Performance Tools, Chapter 15, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing stolen CPU time. Ctrl-C to end.\n");
+}
+
+kretprobe:xen_steal_clock,
+kretprobe:kvm_steal_clock
+{
+	if (@last[cpu] > 0) {
+		@stolen_us = hist((retval - @last[cpu]) / 1000);
+	}
+	@last[cpu] = retval;
+}
+
+END
+{
+	clear(@last);
+}

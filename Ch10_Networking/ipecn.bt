@@ -1,0 +1,33 @@
+#!/usr/local/bin/bpftrace
+/*
+ * ipecn - Trace IP inbound explicit congestion notification.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/skbuff.h>
+#include <linux/ip.h>
+
+BEGIN
+{
+	printf("Tracing inbound IPv4 ECN Congestion Encountered. ");
+	printf("Hit Ctrl-C to end.\n");
+}
+
+kprobe:ip_rcv
+{
+	$skb = (struct sk_buff *)arg0;
+	// get IPv4 header; see skb_network_header():
+	$iph = (struct iphdr *)($skb->head + $skb->network_header);
+	// see INET_ECN_MASK:
+	if (($iph->tos & 3) == 3) {
+		time("%H:%M:%S ");
+		printf("ECN CE from: %s\n", ntop($iph->saddr));
+	}
+}

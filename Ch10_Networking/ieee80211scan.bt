@@ -1,0 +1,54 @@
+#!/usr/local/bin/bpftrace
+/*
+ * ieee80211scan - Trace IEEE 802.11 WiFi scanning.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <net/mac80211.h>
+
+BEGIN
+{
+	printf("Tracing ieee80211 SSID scans. Hit Ctrl-C to end.\n");
+	// from include/uapi/linux/nl80211.h:
+	@band[0] = "2GHZ";
+	@band[1] = "5GHZ";
+	@band[2] = "60GHZ";
+}
+
+kprobe:ieee80211_request_scan
+{
+	time("%H:%M:%S ");
+	printf("scan started (on-CPU PID %d, %s)\n", pid, comm);
+	@start = nsecs;
+}
+
+kretprobe:ieee80211_get_channel
+/retval/
+{
+	$ch = (struct ieee80211_channel *)retval;
+	$band = 0xff & *retval;	// XXX workaround, should be $ch->band;
+	time("%H:%M:%S ");
+	printf("scanning channel %s freq %d: beacon_found %d\n",
+	    @band[$band], $ch->center_freq, $ch->beacon_found);
+}
+
+kprobe:ieee80211_scan_completed
+/@start/
+{
+	$hw = (struct ieee80211_hw *)arg0;
+	time("%H:%M:%S ");
+	printf("scan compeleted: %d ms\n", (nsecs - @start) / 1000000);
+	delete(@start);
+}
+
+END
+{
+	clear(@start); clear(@band);
+}

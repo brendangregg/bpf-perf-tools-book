@@ -1,0 +1,52 @@
+#!/usr/local/bin/bpftrace
+/*
+ * pmheld - Show pthread mutex held times and user stacks.
+ *
+ * See BPF Performance Tools, Chapter 13, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing libpthread mutex held times, Ctrl-C to end.\n");
+}
+
+uprobe:/lib/x86_64-linux-gnu/libpthread.so.0:pthread_mutex_lock,
+uprobe:/lib/x86_64-linux-gnu/libpthread.so.0:pthread_mutex_trylock
+/$1 == 0 || pid == $1/
+{
+	@lock_addr[tid] = arg0;
+}
+
+uretprobe:/lib/x86_64-linux-gnu/libpthread.so.0:pthread_mutex_lock
+/($1 == 0 || pid == $1) && @lock_addr[tid]/
+{
+	@held_start[pid, @lock_addr[tid]] = nsecs;
+	delete(@lock_addr[tid]);
+}
+
+uretprobe:/lib/x86_64-linux-gnu/libpthread.so.0:pthread_mutex_trylock
+/retval == 0 && ($1 == 0 || pid == $1) && @lock_addr[tid]/
+{
+	@held_start[pid, @lock_addr[tid]] = nsecs;
+	delete(@lock_addr[tid]);
+}
+
+uprobe:/lib/x86_64-linux-gnu/libpthread.so.0:pthread_mutex_unlock
+/($1 == 0 || pid == $1) && @held_start[pid, arg0]/
+{
+	@held_time_ns[usym(arg0), ustack(5), comm] =
+	    hist(nsecs - @held_start[pid, arg0]);
+	delete(@held_start[pid, arg0]);
+}
+
+END
+{
+	clear(@lock_addr);
+	clear(@held_start);
+}

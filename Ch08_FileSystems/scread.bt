@@ -1,0 +1,23 @@
+#!/usr/local/bin/bpftrace
+/*
+ * scread - Count read(2) files.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/sched.h>
+#include <linux/fs.h>
+#include <linux/fdtable.h>
+
+tracepoint:syscalls:sys_enter_read
+{
+	$task = (struct task_struct *)curtask;
+	$file = (struct file *)*($task->files->fdt->fd + args->fd);
+	@filename[str($file->f_path.dentry->d_name.name)] = count();
+}

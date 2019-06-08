@@ -1,0 +1,40 @@
+#!/usr/local/bin/bpftrace
+/*
+ * netsize - Show net device I/O sizes.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/skbuff.h>
+
+BEGIN
+{
+	printf("Tracing net device send/receive. Hit Ctrl-C to end.\n");
+}
+
+tracepoint:net:netif_receive_skb
+{
+	@recv_bytes = hist(args->len);
+}
+
+kprobe:dev_queue_xmit
+{
+	$skb = (struct sk_buff *)arg0;
+	@send_bytes = hist($skb->len);
+}
+
+tracepoint:net:napi_gro_receive_entry
+{
+	@nic_recv_bytes = hist(args->len);
+}
+
+tracepoint:net:net_dev_xmit
+{
+	@nic_send_bytes = hist(args->len);
+}

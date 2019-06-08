@@ -1,0 +1,36 @@
+#!/usr/local/bin/bpftrace
+/*
+ * bashfunclat - Show bash function latency as a histogram.
+ *
+ * See BPF Performance Tools, Chapter 12, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+struct variable_partial {
+	char *name;
+};
+
+BEGIN
+{
+	printf("Tracing bash function latency, Ctrl-C to end.\n");
+}
+
+uprobe:/home/bgregg/Build/bash-4.4.18/bash:execute_function
+{
+	$var = (variable_partial *)arg0;
+	@name[tid] = $var->name;
+	@start[tid] = nsecs;
+}
+
+uretprobe:/home/bgregg/Build/bash-4.4.18/bash:execute_function
+/@start[tid]/
+{
+	@ms[str(@name[tid])] = hist((nsecs - @start[tid]) / 1000000);
+	delete(@name[tid]);
+	delete(@start[tid]);
+}

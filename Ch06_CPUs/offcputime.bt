@@ -1,0 +1,40 @@
+#!/usr/local/bin/bpftrace
+/*
+ * offcputime - Summarize off-CPU time by stack trace (bpftrace version).
+ *
+ * See BPF Performance Tools, Chapter 6, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/sched.h>
+
+BEGIN
+{
+	printf("Tracing nanosecond time in off-CPU stacks. Ctrl-C to end.\n");
+}
+
+kprobe:finish_task_switch
+{
+	// record previous thread sleep time
+	$prev = (struct task_struct *)arg0;
+	if ($1 == 0 || $prev->tgid == $1) {
+		@start[$prev->pid] = nsecs;
+	}
+
+	// get the current thread start time
+	$last = @start[tid];
+	if ($last != 0) {
+		@[kstack, ustack, comm] = sum(nsecs - $last);
+		delete(@start[tid]);
+	}
+}
+
+END
+{
+	clear(@start);
+}

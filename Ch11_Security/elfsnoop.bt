@@ -1,0 +1,40 @@
+#!/usr/local/bin/bpftrace
+/*
+ * elfsnoop - Show ELF file loads.
+ *
+ * See BPF Performance Tools, Chapter 11, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/binfmts.h>
+#include <linux/fs.h>
+#include <linux/mount.h>
+
+BEGIN
+{
+	printf("Tracing ELF loads. Ctrl-C to end\n");
+	printf("%-8s %-6s %-18s %-18s %-10s %-10s RET\n",
+	    "TIME", "PID", "INTERPRETER", "FILE", "MOUNT", "INODE");
+}
+
+kprobe:load_elf_binary
+{
+	@arg0[tid] = arg0;
+}
+
+kretprobe:load_elf_binary
+/@arg0[tid]/
+{
+	$bin = (linux_binprm *)@arg0[tid];
+	time("%H:%M:%S ");
+	printf("%-6d %-18s %-18s %-10s %-10d %3d\n", pid,
+	    str($bin->interp), str($bin->filename),
+	    str($bin->file->f_path.mnt->mnt_root->d_name.name),
+	    $bin->file->f_inode->i_ino, retval);
+	delete(@arg0[tid]);
+}

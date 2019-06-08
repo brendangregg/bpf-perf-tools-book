@@ -1,0 +1,76 @@
+#!/usr/local/bin/bpftrace
+/*
+ * soaccept - Trace socket IP-protocol accepts with details.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/in.h>
+#include <linux/in6.h>
+
+BEGIN
+{
+	printf("%-6s %-16s FAM %-16s %-5s %s\n", "PID", "PROCESS",
+	    "ADDRESS", "PORT", "RESULT");
+	// accept(2) has more details:
+	@err2str[0] = "Success";
+	@err2str[EPERM] = "Permission denied";
+	@err2str[EINTR] = "Interrupted";
+	@err2str[EBADF] = "Invalid sockfd";
+	@err2str[EAGAIN] = "None to accept";
+	@err2str[ENOMEM] = "Out of memory";
+	@err2str[EFAULT] = "Sock struct addr invalid";
+	@err2str[EINVAL] = "Args invalid";
+	@err2str[ENFILE] = "System FD limit";
+	@err2str[EMFILE] = "Process FD limit";
+	@err2str[EPROTO] = "Protocol error";
+	@err2str[ENOTSOCK] = "FD not a socket";
+	@err2str[EOPNOTSUPP] = "Not SOCK_STREAM";
+	@err2str[ECONNABORTED] = "Aborted";
+	@err2str[ENOBUFS] = "Memory (ENOBUFS)";
+}
+
+tracepoint:syscalls:sys_enter_accept,
+tracepoint:syscalls:sys_enter_accept4
+{
+	@sockaddr[tid] = args->upeer_sockaddr;
+}
+
+tracepoint:syscalls:sys_exit_accept,
+tracepoint:syscalls:sys_exit_accept4
+/@sockaddr[tid]/
+{
+	$sa = (struct sockaddr *)@sockaddr[tid];
+	if ($sa->sa_family == AF_INET || $sa->sa_family == AF_INET6) {
+		printf("%-6d %-16s %-3d ", pid, comm, $sa->sa_family);
+		$error = args->ret > 0 ? 0 : - args->ret;
+
+		if ($sa->sa_family == AF_INET) {
+			$s = (struct sockaddr_in *)@sockaddr[tid];
+			$port = ($s->sin_port >> 8) |
+			    (($s->sin_port << 8) & 0xff00);
+			printf("%-16s %-5d %s\n",
+			    ntop(AF_INET, $s->sin_addr.s_addr), $port,
+			    @err2str[$error]);
+		} else {
+			$s6 = (struct sockaddr_in6 *)@sockaddr[tid];
+			$port = ($s6->sin6_port >> 8) |
+			    (($s6->sin6_port << 8) & 0xff00);
+			printf("%-16s %-5d %s\n",
+			    "(IPv6addr)", $port, @err2str[$error]);
+		}
+	}
+
+	delete(@sockaddr[tid]);
+}
+
+END
+{
+	clear(@err2str); clear(@sockaddr);
+}

@@ -1,0 +1,37 @@
+#!/usr/local/bin/bpftrace
+/*
+ * pidnss - Count PID namespace switches: containers sharing a CPU.
+ *
+ * See BPF Performance Tools, Chapter 15, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/sched.h>
+#include <linux/nsproxy.h>
+#include <linux/pid_namespace.h>
+
+BEGIN
+{
+	printf("Tracing PID namespace switches. Ctrl-C to end\n");
+}
+
+kprobe:finish_task_switch
+{
+	$prev = (struct task_struct *)arg0;
+	$curr = (struct task_struct *)curtask;
+	$prev_pidns = $prev->nsproxy->pid_ns_for_children->ns.inum;
+	$curr_pidns = $curr->nsproxy->pid_ns_for_children->ns.inum;
+	if ($prev_pidns != $curr_pidns) {
+		@[$prev_pidns] = count();
+	}
+}
+
+END
+{
+	printf("Victim PID namespace switch counts:\n");
+}

@@ -1,0 +1,45 @@
+#!/usr/local/bin/bpftrace
+/*
+ * vfssize - Show VFS read/write sizes.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/fs.h>
+
+kprobe:vfs_read,
+kprobe:vfs_readv,
+kprobe:vfs_write,
+kprobe:vfs_writev
+{
+	@file[tid] = arg0;
+}
+
+kretprobe:vfs_read,
+kretprobe:vfs_readv,
+kretprobe:vfs_write,
+kretprobe:vfs_writev
+/@file[tid]/
+{
+	if (retval >= 0) {
+		$file = (struct file *)@file[tid];
+		$name = $file->f_path.dentry->d_name.name;
+		if ((($file->f_inode->i_mode >> 12) & 15) == DT_FIFO) {
+			@[comm, "FIFO"] = hist(retval);
+		} else {
+			@[comm, str($name)] = hist(retval);
+		}
+	}
+	delete(@file[tid]);
+}
+
+END
+{
+	clear(@file);
+}

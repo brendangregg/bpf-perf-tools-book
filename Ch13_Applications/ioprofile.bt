@@ -1,0 +1,26 @@
+#!/usr/local/bin/bpftrace
+/*
+ * ioprofile - Count stacks on I/O.
+ *
+ * See BPF Performance Tools, Chapter 13, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing I/O syscall user stacks. Ctrl-C to end.\n");
+}
+
+tracepoint:syscalls:sys_enter_*read*,
+tracepoint:syscalls:sys_enter_*write*,
+tracepoint:syscalls:sys_enter_*send*,
+tracepoint:syscalls:sys_enter_*recv*
+/$1 == 0 || pid == $1/
+{
+	@[probe, ustack, comm] = count();
+}

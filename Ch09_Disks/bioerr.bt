@@ -1,0 +1,26 @@
+#!/usr/local/bin/bpftrace
+/*
+ * bioerr - Trace disk errors.
+ *
+ * See BPF Performance Tools, Chapter 9, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing block I/O errors. Hit Ctrl-C to end.\n");
+}
+
+tracepoint:block:block_rq_complete
+/args->error != 0/
+{
+	time("%H:%M:%S ");
+	printf("device: %d,%d, sector: %d, bytes: %d, flags: %s, error: %d\n",
+	    args->dev >> 20, args->dev & ((1 << 20) - 1), args->sector,
+	    args->nr_sector * 512, args->rwbs, args->error);
+}

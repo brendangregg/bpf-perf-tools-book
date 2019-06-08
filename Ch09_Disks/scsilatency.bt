@@ -1,0 +1,49 @@
+#!/usr/local/bin/bpftrace
+/*
+ * scsilatency - Show SCSI command latency distributions.
+ *
+ * See BPF Performance Tools, Chapter 9, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <scsi/scsi_cmnd.h>
+
+BEGIN
+{
+	printf("Tracing scsi latency. Hit Ctrl-C to end.\n");
+	// SCSI opcodes from scsi/scsi_proto.h; add more mappings if desired:
+	@opcode[0x00] = "TEST_UNIT_READY";
+	@opcode[0x03] = "REQUEST_SENSE";
+	@opcode[0x08] = "READ_6";
+	@opcode[0x0a] = "WRITE_6";
+	@opcode[0x0b] = "SEEK_6";
+	@opcode[0x12] = "INQUIRY";
+	@opcode[0x18] = "ERASE";
+	@opcode[0x28] = "READ_10";
+	@opcode[0x2a] = "WRITE_10";
+	@opcode[0x2b] = "SEEK_10";
+	@opcode[0x35] = "SYNCHRONIZE_CACHE";
+}
+
+kprobe:scsi_init_io
+{
+	@start[arg0] = nsecs;
+}
+
+kprobe:scsi_done
+/@start[arg0]/
+{
+	$cmnd = (struct scsi_cmnd *)arg0;
+	$opcode = *$cmnd->req.cmd & 0xff;
+	@usecs[$opcode, @opcode[$opcode]] = hist((nsecs - @start[arg0]) / 1000);
+}
+
+END
+{
+	clear(@start); clear(@opcode);
+}

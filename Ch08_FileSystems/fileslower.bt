@@ -1,0 +1,58 @@
+#!/usr/local/bin/bpftrace
+/*
+ * fileslower - Show slow file reads/writes.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/fs.h>
+
+BEGIN
+{
+	printf("%-8s %-16s %-6s T %-7s %7s %s\n", "TIMEms", "COMM", "PID",
+	    "BYTES", "LATms", "FILE");
+}
+	
+kprobe:new_sync_read,
+kprobe:new_sync_write
+{
+	$file = (struct file *)arg0;
+	if ($file->f_path.dentry->d_name.len != 0) {
+		@name[tid] = $file->f_path.dentry->d_name.name;
+		@size[tid] = arg2;
+		@start[tid] = nsecs;
+	}
+}
+
+kretprobe:new_sync_read
+/@start[tid]/
+{
+	$read_ms = (nsecs - @start[tid]) / 1000000;
+	if ($read_ms >= 1) {
+		printf("%-8d %-16s %-6d R %-7d %7d %s\n", nsecs / 1000000,
+		    comm, pid, @size[tid], $read_ms, str(@name[tid]));
+	}
+	delete(@start[tid]); delete(@size[tid]); delete(@name[tid]);
+}
+
+kretprobe:new_sync_write
+/@start[tid]/
+{
+	$write_ms = (nsecs - @start[tid]) / 1000000;
+	if ($write_ms >= 1) {
+		printf("%-8d %-16s %-6d W %-7d %7d %s\n", nsecs / 1000000,
+		    comm, pid, @size[tid], $write_ms, str(@name[tid]));
+	}
+	delete(@start[tid]); delete(@size[tid]); delete(@name[tid]);
+}
+
+END
+{
+	clear(@start); clear(@size); clear(@name);
+}

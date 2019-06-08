@@ -1,0 +1,30 @@
+#!/usr/bin/env bpftrace
+/*
+ * execsnoop.bt   Trace new processes via exec() syscalls.
+ *                For Linux, uses bpftrace and eBPF.
+ *
+ * This is a snapshot from https://github.com/iovisor/bpftrace.
+ * Refer to that repository for updated versions.
+ *
+ * This traces when processes call exec(). It is handy for identifying new
+ * processes created via the usual fork()->exec() sequence. Note that the
+ * return value is not currently traced, so the exec() may have failed.
+ *
+ * TODO: switch to tracepoints args. Support more args. Include retval.
+ *
+ * This is a bpftrace version of the bcc tool of the same name.
+ *
+ * 15-Nov-2017	Brendan Gregg	Created this.
+ * 11-Sep-2018	   "     "	Switched to use join().
+ */
+
+BEGIN
+{
+	printf("%-10s %-5s %s\n", "TIME(ms)", "PID", "ARGS");
+}
+
+tracepoint:syscalls:sys_enter_execve
+{
+	printf("%-10u %-5d ", elapsed / 1000000, pid);
+	join(args->argv);
+}

@@ -1,0 +1,31 @@
+#!/usr/local/bin/bpftrace
+/*
+ * shellsnoop - Mirror shell output.
+ *
+ * See BPF Performance Tools, Chapter 11, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+/$1 == 0/
+{
+	printf("USAGE: shellsnoop.bt PID\n");
+	exit();
+}
+
+tracepoint:sched:sched_process_fork
+/args->parent_pid == $1 || @descendent[args->parent_pid]/
+{
+	@descendent[args->child_pid] = 1;
+}
+
+tracepoint:syscalls:sys_enter_write
+/(pid == $1 || @descendent[pid]) && (args->fd == 1 || args->fd == 2)/
+{
+	printf("%s", str(args->buf, args->count));
+}

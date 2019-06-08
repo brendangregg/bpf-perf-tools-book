@@ -1,0 +1,28 @@
+#!/usr/local/bin/bpftrace
+/*
+ * skbdrop - Trace sk_buff drops with kernel stack traces.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing unusual skb drop stacks. Hit Ctrl-C to end.\n");
+	system("nstat > /dev/null");
+}
+
+tracepoint:skb:kfree_skb
+{
+	@[kstack(8)] = count();
+}
+
+END
+{
+	system("nstat; nstat -rs > /dev/null");
+}

@@ -1,0 +1,62 @@
+#!/usr/local/bin/bpftrace
+/*
+ * signals - Summarize sent signals by target process.
+ *
+ * See BPF Performance Tools, Chapter 13, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Counting signals. Hit Ctrl-C to end.\n");
+
+	// from /usr/include/asm-generic/signal.h:
+	@sig[0] = "0";
+	@sig[1] = "SIGHUP";
+	@sig[2] = "SIGINT";
+	@sig[3] = "SIGQUIT";
+	@sig[4] = "SIGILL";
+	@sig[5] = "SIGTRAP";
+	@sig[6] = "SIGABRT";
+	@sig[6] = "SIGIOT";
+	@sig[7] = "SIGBUS";
+	@sig[8] = "SIGFPE";
+	@sig[9] = "SIGKILL";
+	@sig[10] = "SIGUSR1";
+	@sig[11] = "SIGSEGV";
+	@sig[12] = "SIGUSR2";
+	@sig[13] = "SIGPIPE";
+	@sig[14] = "SIGALRM";
+	@sig[15] = "SIGTERM";
+	@sig[16] = "SIGSTKFLT";
+	@sig[17] = "SIGCHLD";
+	@sig[18] = "SIGCONT";
+	@sig[19] = "SIGSTOP";
+	@sig[20] = "SIGTSTP";
+	@sig[21] = "SIGTTIN";
+	@sig[22] = "SIGTTOU";
+	@sig[23] = "SIGURG";
+	@sig[24] = "SIGXCPU";
+	@sig[25] = "SIGXFSZ";
+	@sig[26] = "SIGVTALRM";
+	@sig[27] = "SIGPROF";
+	@sig[28] = "SIGWINCH";
+	@sig[30] = "SIGPWR";
+	@sig[31] = "SIGSYS";
+}
+
+tracepoint:signal:signal_generate
+{
+	@[@sig[args->sig], args->pid, args->comm] = count();
+}
+
+END
+{
+	printf("\n@[SIGNAL, PID, COMM] = COUNT");
+	clear(@sig);
+}

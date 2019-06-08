@@ -1,0 +1,74 @@
+#!/usr/local/bin/bpftrace
+/*
+ * so1stbyte - Summarize IP socket first byte latency.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <asm-generic/errno.h>
+#include <linux/in.h>
+
+BEGIN
+{
+	printf("Tracing IP socket first-read-byte latency. Ctrl-C to end.\n");
+}
+
+tracepoint:syscalls:sys_enter_connect
+/args->uservaddr->sa_family == AF_INET ||
+    args->uservaddr->sa_family == AF_INET6/
+{
+	@connfd[tid] = args->fd;
+	@connstart[pid, args->fd] = nsecs;
+}
+
+tracepoint:syscalls:sys_exit_connect
+{
+	if (args->ret != 0 && args->ret != - EINPROGRESS) {
+		// connect() failure, delete flag if present
+		delete(@connstart[pid, @connfd[tid]]);
+	}
+	delete(@connfd[tid]);
+}
+
+tracepoint:syscalls:sys_enter_close
+/@connstart[pid, args->fd]/
+{
+	// never called read
+	delete(@connstart[pid, @connfd[tid]]);
+}
+
+tracepoint:syscalls:sys_enter_read,
+tracepoint:syscalls:sys_enter_readv,
+tracepoint:syscalls:sys_enter_pread*,
+tracepoint:syscalls:sys_enter_recvfrom,
+tracepoint:syscalls:sys_enter_recvmsg,
+tracepoint:syscalls:sys_enter_recvmmsg
+/@connstart[pid, args->fd]/
+{
+	@readfd[tid] = args->fd;
+}
+
+tracepoint:syscalls:sys_exit_read,
+tracepoint:syscalls:sys_exit_readv,
+tracepoint:syscalls:sys_exit_pread*,
+tracepoint:syscalls:sys_exit_recvfrom,
+tracepoint:syscalls:sys_exit_recvmsg,
+tracepoint:syscalls:sys_exit_recvmmsg
+/@readfd[tid]/
+{
+	$fd = @readfd[tid];
+	@us[comm, pid] = hist((nsecs - @connstart[pid, $fd]) / 1000);
+	delete(@connstart[pid, $fd]);
+	delete(@readfd[tid]);
+}
+
+END
+{
+	clear(@connstart); clear(@connfd); clear(@readfd);
+}

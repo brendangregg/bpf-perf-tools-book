@@ -1,0 +1,22 @@
+#!/usr/local/bin/bpftrace
+/*
+ * hfaults - Count huge page faults by process.
+ *
+ * See BPF Performance Tools, Chapter 7, for an explanation of this tool.
+ *
+ * Copyright 2019 Amer Ather.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing Huge Page faults per process... Hit Ctrl-C to end.\n");
+}
+
+kprobe:hugetlb_fault
+{
+	@[pid, comm] = count();
+}

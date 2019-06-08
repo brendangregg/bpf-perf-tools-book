@@ -1,0 +1,36 @@
+#!/usr/local/bin/bpftrace
+/*
+ * numamove - Show numa page migration statistics.
+ *
+ * See BPF Performance Tools, Chapter 14, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+kprobe:migrate_misplaced_page { @start[tid] = nsecs; }
+
+kretprobe:migrate_misplaced_page /@start[tid]/
+{
+	$dur = nsecs - @start[tid];
+	@ns = @ns + $dur;
+	@num = @num + 1;
+	delete(@start[tid]);
+}
+
+BEGIN
+{
+	printf("%-10s %18s %18s\n", "TIME",
+	    "NUMA_migrations", "NUMA_migrations_ms");
+}
+
+interval:s:1
+{
+	time("%H:%M:%S");
+	printf("   %18d %18d\n", @num, @ns / 1000000);
+	delete(@num);
+	delete(@ns);
+}

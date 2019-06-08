@@ -1,0 +1,33 @@
+#!/usr/local/bin/bpftrace
+/*
+ * slabratetop - Show kernel slab allocation rates by cache.
+ *
+ * See BPF Performance Tools, Chapter 14, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/mm.h>
+#include <linux/slab.h>
+#ifdef CONFIG_SLUB
+#include <linux/slub_def.h>
+#else
+#include <linux/slab_def.h>
+#endif
+
+kprobe:kmem_cache_alloc
+{
+	$cachep = (kmem_cache *)arg0;
+	@[str($cachep->name)] = count();
+}
+
+interval:s:1
+{
+	time();
+	print(@);
+	clear(@);
+}

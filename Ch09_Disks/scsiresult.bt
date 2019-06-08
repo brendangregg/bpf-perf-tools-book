@@ -1,0 +1,48 @@
+#!/usr/local/bin/bpftrace
+/*
+ * scsiresult - Show SCSI command result codes.
+ *
+ * See BPF Performance Tools, Chapter 9, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing scsi command results. Hit Ctrl-C to end.\n");
+	// from scsi/scsi.h:
+	@did[0x00] = "DID_OK";
+	@did[0x01] = "DID_NO_CONNECT";
+	@did[0x02] = "DID_BUS_BUSY";
+	@did[0x03] = "DID_TIME_OUT";
+	@did[0x04] = "DID_BAD_TARGET";
+	@did[0x05] = "DID_ABORT";
+	@did[0x06] = "DID_PARITY";
+	@did[0x07] = "DID_ERROR";
+	@did[0x08] = "DID_RESET";
+	@did[0x09] = "DID_BAD_INTR";
+	@did[0x0a] = "DID_PASSTHROUGH";
+	@did[0x0b] = "DID_SOFT_ERROR";
+	@did[0x0c] = "DID_IMM_RETRY";
+	@did[0x0d] = "DID_REQUEUE";
+	@did[0x0e] = "DID_TRANSPORT_DISRUPTED";
+	@did[0x0f] = "DID_TRANSPORT_FAILFAST";
+	@did[0x10] = "DID_TARGET_FAILURE";
+	@did[0x11] = "DID_NEXUS_FAILURE";
+	@did[0x12] = "DID_ALLOC_FAILURE";
+	@did[0x13] = "DID_MEDIUM_ERROR";
+}
+
+tracepoint:scsi:scsi_dispatch_cmd_done
+{
+	@[@did[args->result]] = count();
+}
+
+END
+{
+	clear(@did);
+}

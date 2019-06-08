@@ -1,0 +1,24 @@
+#!/usr/local/bin/bpftrace
+/*
+ * mmapfiles - Count mmap(2) files.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/mm.h>
+
+kprobe:do_mmap
+{
+	$file = (struct file *)arg0;
+	$name = $file->f_path.dentry;
+	$dir1 = $name->d_parent;
+	$dir2 = $dir1->d_parent;
+	@[str($dir2->d_name.name), str($dir1->d_name.name),
+	    str($name->d_name.name)] = count();
+}

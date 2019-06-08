@@ -1,0 +1,37 @@
+#!/usr/local/bin/bpftrace
+/*
+ * blkthrot - Count block I/O throttles by blk cgroup.
+ *
+ * See BPF Performance Tools, Chapter 15, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/cgroup-defs.h>
+#include <linux/blk-cgroup.h>
+
+BEGIN
+{
+	printf("Tracing block I/O throttles by cgroup. Ctrl-C to end\n");
+}
+
+kprobe:blk_throtl_bio
+{
+	@blkg[tid] = arg1;
+}
+
+kretprobe:blk_throtl_bio
+/@blkg[tid]/
+{
+	$blkg = (struct blkcg_gq *)@blkg[tid];
+	if (retval) {
+		@throttled[$blkg->blkcg->css.id] = count();
+	} else {
+		@notthrottled[$blkg->blkcg->css.id] = count();
+	}
+	delete(@blkg[tid]);
+}

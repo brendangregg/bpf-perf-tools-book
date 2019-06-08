@@ -1,0 +1,45 @@
+#!/usr/local/bin/bpftrace
+/*
+ * socketio - Summarize socket I/O bytes and counts.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/fs.h>
+
+kprobe:sock_read_iter,
+kprobe:sock_write_iter
+{
+	@kiocb[tid] = arg0;
+}
+
+kretprobe:sock_read_iter
+/@kiocb[tid]/
+{
+	$file = ((struct kiocb *)@kiocb[tid])->ki_filp;
+	$name = $file->f_path.dentry->d_name.name;
+	@io[comm, pid, "read", str($name)] = count();
+	@bytes[comm, pid, "read", str($name)] = sum(retval > 0 ? retval : 0);
+	delete(@kiocb[tid]);
+}
+
+kretprobe:sock_write_iter
+/@kiocb[tid]/
+{
+	$file = ((struct kiocb *)@kiocb[tid])->ki_filp;
+	$name = $file->f_path.dentry->d_name.name;
+	@io[comm, pid, "write", str($name)] = count();
+	@bytes[comm, pid, "write", str($name)] = sum(retval > 0 ? retval : 0);
+	delete(@kiocb[tid]);
+}
+
+END
+{
+	clear(@kiocb);
+}

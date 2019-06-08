@@ -1,0 +1,63 @@
+#!/usr/local/bin/bpftrace
+/*
+ * xenhyper - Count Xen PV hypercalls from the guest.
+ *
+ * See BPF Performance Tools, Chapter 15, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Counting Xen hypercalls (xen_mc_entry). Ctrl-C to end.\n");
+
+	// needs updating to match your kernel version: xen-hypercalls.h
+	@name[0] = "set_trap_table";
+	@name[1] = "mmu_update";
+	@name[2] = "set_gdt";
+	@name[3] = "stack_switch";
+	@name[4] = "set_callbacks";
+	@name[5] = "fpu_taskswitch";
+	@name[6] = "sched_op_compat";
+	@name[7] = "dom0_op";
+	@name[8] = "set_debugreg";
+	@name[9] = "get_debugreg";
+	@name[10] = "update_descriptor";
+	@name[11] = "memory_op";
+	@name[12] = "multicall";
+	@name[13] = "update_va_mapping";
+	@name[14] = "set_timer_op";
+	@name[15] = "event_channel_op_compat";
+	@name[16] = "xen_version";
+	@name[17] = "console_io";
+	@name[18] = "physdev_op_compat";
+	@name[19] = "grant_table_op";
+	@name[20] = "vm_assist";
+	@name[21] = "update_va_mapping_otherdomain";
+	@name[22] = "iret";
+	@name[23] = "vcpu_op";
+	@name[24] = "set_segment_base";
+	@name[25] = "mmuext_op";
+	@name[26] = "acm_op";
+	@name[27] = "nmi_op";
+	@name[28] = "sched_op";
+	@name[29] = "callback_op";
+	@name[30] = "xenoprof_op";
+	@name[31] = "event_channel_op";
+	@name[32] = "physdev_op";
+	@name[33] = "hvm_op";
+}
+
+tracepoint:xen:xen_mc_entry
+{
+	@[@name[args->op]] = count();
+}
+
+END
+{
+	clear(@name);
+}

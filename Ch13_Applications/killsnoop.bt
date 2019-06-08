@@ -1,0 +1,42 @@
+#!/usr/bin/env bpftrace
+/*
+ * killsnoop	Trace signals issued by the kill() syscall.
+ *		For Linux, uses bpftrace and eBPF.
+ *
+ * This is a snapshot from https://github.com/iovisor/bpftrace.
+ * Refer to that repository for updated versions.
+ *
+ * USAGE: killsnoop.bt
+ *
+ * Also a basic example of bpftrace.
+ *
+ * This is a bpftrace version of the bcc tool of the same name.
+ *
+ * Copyright 2018 Netflix, Inc.
+ * Licensed under the Apache License, Version 2.0 (the "License")
+ *
+ * 07-Sep-2018	Brendan Gregg	Created this.
+ */
+
+BEGIN
+{
+	printf("Tracing kill() signals... Hit Ctrl-C to end.\n");
+	printf("%-9s %-6s %-16s %-4s %-6s %s\n", "TIME", "PID", "COMM", "SIG",
+	    "TPID", "RESULT");
+}
+
+tracepoint:syscalls:sys_enter_kill
+{
+	@tpid[tid] = args->pid;
+	@tsig[tid] = args->sig;
+}
+
+tracepoint:syscalls:sys_exit_kill
+/@tpid[tid]/
+{
+	time("%H:%M:%S  ");
+	printf("%-6d %-16s %-4d %-6d %d\n", pid, comm, @tsig[tid], @tpid[tid],
+	    args->ret);
+	delete(@tpid[tid]);
+	delete(@tsig[tid]);
+}

@@ -1,0 +1,29 @@
+#!/usr/local/bin/bpftrace
+/*
+ * jnistacks - Show JNI consumers by object stack trace.
+ *
+ * See BPF Performance Tools, Chapter 12, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing jni_NewObject* calls... Ctrl-C to end.\n");
+}
+
+uprobe:/usr/lib/jvm/java-11-openjdk-amd64/lib/server/libjvm.so:jni_NewObject*
+{
+	@[ustack] = count();
+}
+
+END
+{
+	$jmaps = "/usr/local/bin/jmaps";
+	printf("\nRunning %s to create Java symbol files in /tmp...\n", $jmaps);
+	system("%s", $jmaps);
+}

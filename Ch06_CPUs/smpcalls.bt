@@ -1,0 +1,53 @@
+#!/usr/local/bin/bpftrace
+/*
+ * smpcalls - Time SMP calls.
+ *
+ * See BPF Performance Tools, Chapter 6, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing SMP calls. Hit Ctrl-C to stop.\n");
+}
+
+kprobe:smp_call_function_single,
+kprobe:smp_call_function_many
+{
+	@ts[tid] = nsecs;
+	@func[tid] = arg1;
+}
+
+kretprobe:smp_call_function_single,
+kretprobe:smp_call_function_many
+/@ts[tid]/
+{
+	@time_ns[ksym(@func[tid])] = hist(nsecs - @ts[tid]);
+	delete(@ts[tid]);
+	delete(@func[tid]);
+}
+
+kprobe:native_smp_send_reschedule
+{
+	@ts[tid] = nsecs;
+	@func[tid] = reg("ip");
+}
+
+kretprobe:native_smp_send_reschedule
+/@ts[tid]/
+{
+	@time_ns[ksym(@func[tid])] = hist(nsecs - @ts[tid]);
+	delete(@ts[tid]);
+	delete(@func[tid]);
+}
+
+END
+{
+	clear(@ts);
+	clear(@func);
+}

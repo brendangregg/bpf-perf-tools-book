@@ -1,0 +1,38 @@
+#!/usr/local/bin/bpftrace
+/*
+ * workq - Show work queue function execution times.
+ *
+ * See BPF Performance Tools, Chapter 14, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing workqueue request latencies. Ctrl-C to end.\n");
+}
+
+tracepoint:workqueue:workqueue_execute_start
+{
+	@start[tid] = nsecs;
+	@wqfunc[tid] = args->function;
+}
+
+tracepoint:workqueue:workqueue_execute_end
+/@start[tid]/
+{
+	$dur = (nsecs - @start[tid]) / 1000;
+	@us[ksym(@wqfunc[tid])] = hist($dur);
+	delete(@start[tid]);
+	delete(@wqfunc[tid]);
+}
+
+END
+{
+	clear(@start);
+	clear(@wqfunc);
+}

@@ -1,0 +1,43 @@
+#!/usr/local/bin/bpftrace
+/*
+ * ext4dist - Common ext4 operation latency histograms.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing ext4 operation latency... Hit Ctrl-C to end.\n");
+}
+
+kprobe:ext4_file_read_iter,
+kprobe:ext4_file_write_iter,
+kprobe:ext4_file_open,
+kprobe:ext4_sync_file
+{
+	@start[tid] = nsecs;
+	@name[tid] = func;
+}
+
+kretprobe:ext4_file_read_iter,
+kretprobe:ext4_file_write_iter,
+kretprobe:ext4_file_open,
+kretprobe:ext4_sync_file
+/@start[tid]/
+{
+	@us[@name[tid]] = hist((nsecs - @start[tid]) / 1000);
+	delete(@start[tid]);
+	delete(@name[tid]);
+}
+
+END
+{
+	clear(@start);
+	clear(@name);
+}

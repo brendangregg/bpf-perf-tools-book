@@ -1,0 +1,54 @@
+#!/usr/local/bin/bpftrace
+/*
+ * mheld - Show mutex held times and kernel stacks.
+ *
+ * See BPF Performance Tools, Chapter 14, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing mutex_lock() held times, Ctrl-C to end.\n");
+}
+
+kprobe:mutex_lock,
+kprobe:mutex_trylock,
+kprobe:mutex_lock_interruptible
+/$1 == 0 || pid == $1/
+{
+	@lock_addr[tid] = arg0;
+}
+
+kretprobe:mutex_lock
+/($1 == 0 || pid == $1) && @lock_addr[tid]/
+{
+	@held_start[@lock_addr[tid]] = nsecs;
+	delete(@lock_addr[tid]);
+}
+
+kretprobe:mutex_trylock,
+kretprobe:mutex_lock_interruptible
+/retval == 0 && ($1 == 0 || pid == $1) && @lock_addr[tid]/
+{
+	@held_start[@lock_addr[tid]] = nsecs;
+	delete(@lock_addr[tid]);
+}
+
+kprobe:mutex_unlock
+/($1 == 0 || pid == $1) && @held_start[arg0]/
+{
+	@held_time_ns[ksym(arg0), kstack(5), comm] =
+	    hist(nsecs - @held_start[arg0]);
+	delete(@held_start[arg0]);
+}
+
+END
+{
+	clear(@lock_addr);
+	clear(@held_start);
+}

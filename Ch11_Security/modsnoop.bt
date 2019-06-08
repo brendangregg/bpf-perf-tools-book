@@ -1,0 +1,28 @@
+#!/usr/local/bin/bpftrace
+/*
+ * modsnoop - Show kernel module loads.
+ *
+ * See BPF Performance Tools, Chapter 11, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/module.h>
+
+BEGIN
+{
+	printf("Tracing kernel module loads. Hit Ctrl-C to end.\n");
+}
+
+
+kprobe:do_init_module
+{
+	$mod = (struct module *)arg0;
+	time("%H:%M:%S ");
+	printf("module init: %s, by %s (PID %d, user %s, UID %d)\n",
+	    $mod->name, comm, pid, username, uid);
+}

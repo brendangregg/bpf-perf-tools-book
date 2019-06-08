@@ -1,0 +1,38 @@
+#!/usr/local/bin/bpftrace
+/*
+ * tcpreset - Show TCP send resets: port scan detection.
+ *
+ * See BPF Performance Tools, Chapter 11, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <net/sock.h>
+#include <uapi/linux/tcp.h>
+#include <uapi/linux/ip.h>
+
+BEGIN
+{
+	printf("Tracing TCP resets. Hit Ctrl-C to end.\n");
+	printf("%-8s %-14s %-6s %-14s %-6s\n", "TIME",
+	    "LADDR", "LPORT", "RADDR", "RPORT");
+}
+
+kprobe:tcp_v4_send_reset
+{
+	$skb = (sk_buff *)arg1;
+	$AF_INET = 2;
+
+	$tcp = (tcphdr *)($skb->head + $skb->transport_header); 
+	$ip = (iphdr *)($skb->head + $skb->network_header);
+	$dport = ($tcp->dest >> 8) | (($tcp->dest << 8) & 0xff00);
+	$sport = ($tcp->source >> 8) | (($tcp->source << 8) & 0xff00);
+
+	time("%H:%M:%S ");
+	printf("%-14s %-6d %-14s %-6d\n", ntop($AF_INET, $ip->daddr), $dport,
+	    ntop($AF_INET, $ip->saddr), $sport);
+}

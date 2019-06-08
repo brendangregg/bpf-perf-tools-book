@@ -1,0 +1,64 @@
+#!/usr/local/bin/bpftrace
+/*
+ * vmscan - Measure VM scanner shrink and reclaim times.
+ *
+ * See BPF Performance Tools, Chapter 7, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+tracepoint:vmscan:mm_shrink_slab_start { @start_ss[tid] = nsecs; }
+tracepoint:vmscan:mm_shrink_slab_end /@start_ss[tid]/
+{
+	$dur_ss = nsecs - @start_ss[tid];
+	@sum_ss = @sum_ss + $dur_ss;
+	@shrink_slab_ns = hist($dur_ss);
+	delete(@start_ss[tid]);
+}
+
+tracepoint:vmscan:mm_vmscan_direct_reclaim_begin { @start_dr[tid] = nsecs; }
+tracepoint:vmscan:mm_vmscan_direct_reclaim_end /@start_dr[tid]/
+{
+	$dur_dr = nsecs - @start_dr[tid];
+	@sum_dr = @sum_dr + $dur_dr;
+	@direct_reclaim_ns = hist($dur_dr);
+	delete(@start_dr[tid]);
+}
+
+
+tracepoint:vmscan:mm_vmscan_memcg_reclaim_begin { @start_mr[tid] = nsecs; }
+tracepoint:vmscan:mm_vmscan_memcg_reclaim_end /@start_mr[tid]/
+{
+	$dur_mr = nsecs - @start_mr[tid];
+	@sum_mr = @sum_mr + $dur_mr;
+	@memcg_reclaim_ns = hist($dur_mr);
+	delete(@start_mr[tid]);
+}
+
+tracepoint:vmscan:mm_vmscan_wakeup_kswapd { @count_wk++; }
+
+tracepoint:vmscan:mm_vmscan_writepage { @count_wp++; }
+
+BEGIN
+{
+	printf("%-10s %10s %12s %12s %6s %9s\n", "TIME",
+	    "S-SLABms", "D-RECLAIMms", "M-RECLAIMms", "KSWAPD", "WRITEPAGE");
+
+}
+
+interval:s:1
+{
+	time("%H:%M:%S");
+	printf("   %10d %12d %12d %6d %9d\n",
+	    @sum_ss / 1000000, @sum_dr / 1000000, @sum_mr / 1000000,
+	    @count_wk, @count_wp);
+	clear(@sum_ss);
+	clear(@sum_dr);
+	clear(@sum_mr);
+	clear(@count_wk);
+	clear(@count_wp);
+}

@@ -1,0 +1,91 @@
+#!/usr/local/bin/bpftrace
+/*
+ * kvmexits - Show KVM guest exit time by reason, from the host.
+ *
+ * See BPF Performance Tools, Chapter 15, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing KVM exits. Ctrl-C to end\n");
+
+	// from arch/x86/include/uapi/asm/vmx.h:
+	@exitreason[0] = "EXCEPTION_NMI";
+	@exitreason[1] = "EXTERNAL_INTERRUPT";
+	@exitreason[2] = "TRIPLE_FAULT";
+	@exitreason[7] = "PENDING_INTERRUPT";
+	@exitreason[8] = "NMI_WINDOW";
+	@exitreason[9] = "TASK_SWITCH";
+	@exitreason[10] = "CPUID";
+	@exitreason[12] = "HLT";
+	@exitreason[13] = "INVD";
+	@exitreason[14] = "INVLPG";
+	@exitreason[15] = "RDPMC";
+	@exitreason[16] = "RDTSC";
+	@exitreason[18] = "VMCALL";
+	@exitreason[19] = "VMCLEAR";
+	@exitreason[20] = "VMLAUNCH";
+	@exitreason[21] = "VMPTRLD";
+	@exitreason[22] = "VMPTRST";
+	@exitreason[23] = "VMREAD";
+	@exitreason[24] = "VMRESUME";
+	@exitreason[25] = "VMWRITE";
+	@exitreason[26] = "VMOFF";
+	@exitreason[27] = "VMON";
+	@exitreason[28] = "CR_ACCESS";
+	@exitreason[29] = "DR_ACCESS";
+	@exitreason[30] = "IO_INSTRUCTION";
+	@exitreason[31] = "MSR_READ";
+	@exitreason[32] = "MSR_WRITE";
+	@exitreason[33] = "INVALID_STATE";
+	@exitreason[34] = "MSR_LOAD_FAIL";
+	@exitreason[36] = "MWAIT_INSTRUCTION";
+	@exitreason[37] = "MONITOR_TRAP_FLAG";
+	@exitreason[39] = "MONITOR_INSTRUCTION";
+	@exitreason[40] = "PAUSE_INSTRUCTION";
+	@exitreason[41] = "MCE_DURING_VMENTRY";
+	@exitreason[43] = "TPR_BELOW_THRESHOLD";
+	@exitreason[44] = "APIC_ACCESS";
+	@exitreason[45] = "EOI_INDUCED";
+	@exitreason[46] = "GDTR_IDTR";
+	@exitreason[47] = "LDTR_TR";
+	@exitreason[48] = "EPT_VIOLATION";
+	@exitreason[49] = "EPT_MISCONFIG";
+	@exitreason[50] = "INVEPT";
+	@exitreason[51] = "RDTSCP";
+	@exitreason[52] = "PREEMPTION_TIMER";
+	@exitreason[53] = "INVVPID";
+	@exitreason[54] = "WBINVD";
+	@exitreason[55] = "XSETBV";
+	@exitreason[56] = "APIC_WRITE";
+	@exitreason[57] = "RDRAND";
+	@exitreason[58] = "INVPCID";
+}
+
+tracepoint:kvm:kvm_exit
+{
+	@start[tid] = nsecs;
+	@reason[tid] = args->exit_reason;
+}
+
+tracepoint:kvm:kvm_entry
+/@start[tid]/
+{
+	$num = @reason[tid];
+	@exit_ns[$num, @exitreason[$num]] = hist(nsecs - @start[tid]);
+	delete(@start[tid]);
+	delete(@reason[tid]);
+}
+
+END
+{
+	clear(@exitreason);
+	clear(@start);
+	clear(@reason);
+}

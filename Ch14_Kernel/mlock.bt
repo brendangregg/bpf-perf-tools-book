@@ -1,0 +1,49 @@
+#!/usr/local/bin/bpftrace
+/*
+ * mlock - Show mutex lock times and kernel stacks.
+ *
+ * See BPF Performance Tools, Chapter 14, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing mutex_lock() latency, Ctrl-C to end.\n");
+}
+
+kprobe:mutex_lock,
+kprobe:mutex_lock_interruptible
+/$1 == 0 || pid == $1/
+{
+	@lock_start[tid] = nsecs;
+	@lock_addr[tid] = arg0;
+}
+
+kretprobe:mutex_lock
+/($1 == 0 || pid == $1) && @lock_start[tid]/
+{
+	@lock_latency_ns[ksym(@lock_addr[tid]), kstack(5), comm] =
+	    hist(nsecs - @lock_start[tid]);
+	delete(@lock_start[tid]);
+	delete(@lock_addr[tid]);
+}
+
+kretprobe:mutex_lock_interruptible
+/retval == 0 && ($1 == 0 || pid == $1) && @lock_start[tid]/
+{
+	@lock_latency_ns[ksym(@lock_addr[tid]), kstack(5), comm] =
+	    hist(nsecs - @lock_start[tid]);
+	delete(@lock_start[tid]);
+	delete(@lock_addr[tid]);
+}
+
+END
+{
+	clear(@lock_start);
+	clear(@lock_addr);
+}

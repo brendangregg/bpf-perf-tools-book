@@ -1,0 +1,17 @@
+#!/usr/local/bin/bpftrace
+/*
+ * faults - Count page faults with user stacks.
+ *
+ * See BPF Performance Tools, Chapter 7, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+software:page-faults:1
+{
+	@[ustack, comm] = count();
+}

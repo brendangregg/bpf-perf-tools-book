@@ -1,0 +1,76 @@
+#!/usr/local/bin/bpftrace
+/*
+ * soconnect - Trace socket IP-protocol connections with details.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/in.h>
+#include <linux/in6.h>
+
+BEGIN
+{
+	printf("%-6s %-16s FAM %-16s %-5s %8s %s\n", "PID", "PROCESS",
+	    "ADDRESS", "PORT", "LAT(us)", "RESULT");
+	// connect(2) has more details:
+	@err2str[0] = "Success";
+	@err2str[EPERM] = "Permission denied";
+	@err2str[EINTR] = "Interrupted";
+	@err2str[EBADF] = "Invalid sockfd";
+	@err2str[EAGAIN] = "Routing cache insuff.";
+	@err2str[EACCES] = "Perm. denied (EACCES)";
+	@err2str[EFAULT] = "Sock struct addr invalid";
+	@err2str[ENOTSOCK] = "FD not a socket";
+	@err2str[EPROTOTYPE] = "Socket protocol error";
+	@err2str[EAFNOSUPPORT] = "Address family invalid";
+	@err2str[EADDRINUSE] = "Local addr in use";
+	@err2str[EADDRNOTAVAIL] = "No port available";
+	@err2str[ENETUNREACH] = "Network unreachable";
+	@err2str[EISCONN] = "Already connected";
+	@err2str[ETIMEDOUT] = "Timeout";
+	@err2str[ECONNREFUSED] = "Connect refused";
+	@err2str[EALREADY] = "Not yet completed";
+	@err2str[EINPROGRESS] = "In progress";
+}
+
+tracepoint:syscalls:sys_enter_connect
+/args->uservaddr->sa_family == AF_INET ||
+    args->uservaddr->sa_family == AF_INET6/
+{
+	@sockaddr[tid] = (struct sockaddr *)*(ctx + 24); // args->uservaddr;
+	@start[tid] = nsecs;
+}
+
+tracepoint:syscalls:sys_exit_connect
+/@start[tid]/
+{
+	$dur_us = (nsecs - @start[tid]) / 1000;
+	printf("%-6d %-16s %-3d ", pid, comm, @sockaddr[tid]->sa_family);
+
+	if (@sockaddr[tid]->sa_family == AF_INET) {
+		$s = (struct sockaddr_in *)@sockaddr[tid];
+		$port = ($s->sin_port >> 8) | (($s->sin_port << 8) & 0xff00);
+		printf("%-16s %-5d %8d %s\n",
+		    ntop(AF_INET, $s->sin_addr.s_addr), $port, $dur_us,
+		    @err2str[- args->ret]);
+	} else {
+		$s6 = (struct sockaddr_in6 *)@sockaddr[tid];
+		$port = ($s6->sin6_port >> 8) | (($s6->sin6_port << 8) & 0xff00);
+		printf("%-16s %-5d %8d %s\n",
+		    "(IPv6addr)", $port, $dur_us, @err2str[- args->ret]);
+	}
+
+	delete(@sockaddr[tid]);
+	delete(@start[tid]);
+}
+
+END
+{
+	clear(@start); clear(@err2str); clear(@sockaddr);
+}

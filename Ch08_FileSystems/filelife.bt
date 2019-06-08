@@ -1,0 +1,35 @@
+#!/usr/local/bin/bpftrace
+/*
+ * filelife - Trace short-lived files with their duration.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/fs.h>
+
+BEGIN
+{
+	printf("%-6s %-16s %8s %s\n", "PID", "COMM", "AGE(ms)", "FILE");
+}
+
+kprobe:vfs_create,
+kprobe:security_inode_create
+{
+	@birth[arg1] = nsecs;
+}
+
+kprobe:vfs_unlink
+/@birth[arg1]/
+{
+	$dur = nsecs - @birth[arg1];
+	delete(@birth[arg1]);
+	$dentry = (struct dentry *)arg1;
+	printf("%-6d %-16s %8d %s\n", pid, comm, $dur / 1000000,
+	    str($dentry->d_name.name));
+}

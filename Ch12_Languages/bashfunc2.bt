@@ -1,0 +1,22 @@
+#!/usr/local/bin/bpftrace
+/*
+ * bashfunc2 - Trace recompiled bash function calls.
+ *
+ * See BPF Performance Tools, Chapter 12, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+struct variable_partial {
+	char *name;
+};
+
+uprobe:/home/bgregg/Build/bash-4.4.18/bash:execute_function
+{
+	$var = (variable_partial *)arg0;
+	printf("function: %s\n", str($var->name));
+}

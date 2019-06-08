@@ -1,0 +1,48 @@
+#!/usr/local/bin/bpftrace
+/*
+ * biopattern - Identify random/sequential disk access patterns.
+ *
+ * See BPF Performance Tools, Chapter 9, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("%-8s %5s %5s %8s %10s\n", "TIME", "%RND", "%SEQ", "COUNT",
+	    "KBYTES");
+}
+
+tracepoint:block:block_rq_complete
+{
+	if (@lastsector[args->dev] == args->sector) {
+		@sequential++;
+	} else {
+		@random++;
+	}
+	@bytes = @bytes + args->nr_sector * 512;
+	@lastsector[args->dev] = args->sector + args->nr_sector;
+}
+
+interval:s:1
+{
+	$count = @random + @sequential;
+	$div = $count;
+	if ($div == 0) {
+		$div = 1;
+	}
+	time("%H:%M:%S ");
+	printf("%5d %5d %8d %10d\n", @random * 100 / $div,
+	    @sequential * 100 / $div, $count, @bytes / 1024);
+	clear(@random); clear(@sequential); clear(@bytes);
+}
+
+END
+{
+	clear(@lastsector);
+	clear(@random); clear(@sequential); clear(@bytes);
+}

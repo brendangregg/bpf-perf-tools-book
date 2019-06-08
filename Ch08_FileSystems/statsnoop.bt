@@ -1,0 +1,61 @@
+#!/usr/bin/env bpftrace
+/*
+ * statsnoop	Trace stat() syscalls.
+ *		For Linux, uses bpftrace and eBPF.
+ *
+ * This is a snapshot from https://github.com/iovisor/bpftrace.
+ * Refer to that repository for updated versions.
+ *
+ * This traces the traecepoints for statfs(), statx(), newstat(), and
+ * newlstat(). These aren't the only the stat syscalls: if you are missing
+ * activity, you may need to add more variants.
+ *
+ * Also a basic example of bpftrace.
+ *
+ * USAGE: statsnoop.bt
+ *
+ * This is a bpftrace version of the bcc tool of the same name.
+ *
+ * Copyright 2018 Netflix, Inc.
+ * Licensed under the Apache License, Version 2.0 (the "License")
+ *
+ * 08-Sep-2018	Brendan Gregg	Created this.
+ */
+
+BEGIN
+{
+	printf("Tracing stat syscalls... Hit Ctrl-C to end.\n");
+	printf("%-6s %-16s %3s %s\n", "PID", "COMM", "ERR", "PATH");
+}
+
+tracepoint:syscalls:sys_enter_statfs
+{
+	@filename[tid] = args->pathname;
+}
+
+tracepoint:syscalls:sys_enter_statx,
+tracepoint:syscalls:sys_enter_newstat,
+tracepoint:syscalls:sys_enter_newlstat
+{
+	@filename[tid] = args->filename;
+}
+
+tracepoint:syscalls:sys_exit_statfs,
+tracepoint:syscalls:sys_exit_statx,
+tracepoint:syscalls:sys_exit_newstat,
+tracepoint:syscalls:sys_exit_newlstat
+/@filename[tid]/
+{
+	$ret = args->ret;
+	$errno = $ret >= 0 ? 0 : - $ret;
+
+	printf("%-6d %-16s %3d %s\n", pid, comm, $errno,
+	    str(@filename[tid]));
+	delete(@filename[tid]);
+}
+
+END
+{
+	clear(@filename);
+}
+

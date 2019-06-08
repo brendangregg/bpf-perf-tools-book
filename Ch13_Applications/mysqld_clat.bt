@@ -1,0 +1,71 @@
+#!/usr/local/bin/bpftrace
+/*
+ * mysqld_clat - Show MySQL command latency as a histogram.
+ *
+ * See BPF Performance Tools, Chapter 13, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing mysqld command latencies. Ctrl-C to end.\n");
+
+	// from include/my_command.h:
+	@com[0] = "COM_SLEEP";
+	@com[1] = "COM_QUIT";
+	@com[2] = "COM_INIT_DB";
+	@com[3] = "COM_QUERY";
+	@com[4] = "COM_FIELD_LIST";
+	@com[5] = "COM_CREATE_DB";
+	@com[6] = "COM_DROP_DB";
+	@com[7] = "COM_REFRESH";
+	@com[8] = "COM_SHUTDOWN";
+	@com[9] = "COM_STATISTICS";
+	@com[10] = "COM_PROCESS_INFO";
+	@com[11] = "COM_CONNECT";
+	@com[12] = "COM_PROCESS_KILL";
+	@com[13] = "COM_DEBUG";
+	@com[14] = "COM_PING";
+	@com[15] = "COM_TIME";
+	@com[16] = "COM_DELAYED_INSERT";
+	@com[17] = "COM_CHANGE_USER";
+	@com[18] = "COM_BINLOG_DUMP";
+	@com[19] = "COM_TABLE_DUMP";
+	@com[20] = "COM_CONNECT_OUT";
+	@com[21] = "COM_REGISTER_SLAVE";
+	@com[22] = "COM_STMT_PREPARE";
+	@com[23] = "COM_STMT_EXECUTE";
+	@com[24] = "COM_STMT_SEND_LONG_DATA";
+	@com[25] = "COM_STMT_CLOSE";
+	@com[26] = "COM_STMT_RESET";
+	@com[27] = "COM_SET_OPTION";
+	@com[28] = "COM_STMT_FETCH";
+	@com[29] = "COM_DAEMON";
+	@com[30] = "COM_BINLOG_DUMP_GTID";
+	@com[31] = "COM_RESET_CONNECTION";
+}
+
+usdt:/usr/sbin/mysqld:mysql:command__start
+{
+	@command[tid] = arg1;
+	@start[tid] = nsecs;
+}
+
+usdt:/usr/sbin/mysqld:mysql:command__done
+/@start[tid]/
+{
+	$dur = (nsecs - @start[tid]) / 1000;
+	@us[@com[@command[tid]]] = hist($dur);
+	delete(@command[tid]);
+	delete(@start[tid]);
+}
+
+END
+{
+	clear(@com);
+}

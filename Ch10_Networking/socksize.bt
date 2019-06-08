@@ -1,0 +1,24 @@
+#!/usr/local/bin/bpftrace
+/*
+ * socksize - Show socket I/O sizes as per-process histograms.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+kretprobe:sock_read_iter
+/retval >= 0/
+{
+	@read_bytes[comm] = hist(retval);
+}
+
+kretprobe:sock_write_iter
+/retval >= 0/
+{
+	@write_bytes[comm] = hist(retval);
+}

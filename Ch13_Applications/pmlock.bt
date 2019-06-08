@@ -1,0 +1,39 @@
+#!/usr/local/bin/bpftrace
+/*
+ * pmlock - Show pthread mutex lock times and user stacks.
+ *
+ * See BPF Performance Tools, Chapter 13, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing libpthread mutex lock latency, Ctrl-C to end.\n");
+}
+
+uprobe:/lib/x86_64-linux-gnu/libpthread.so.0:pthread_mutex_lock
+/$1 == 0 || pid == $1/
+{
+	@lock_start[tid] = nsecs;
+	@lock_addr[tid] = arg0;
+}
+
+uretprobe:/lib/x86_64-linux-gnu/libpthread.so.0:pthread_mutex_lock
+/($1 == 0 || pid == $1) && @lock_start[tid]/
+{
+	@lock_latency_ns[usym(@lock_addr[tid]), ustack(5), comm] =
+	    hist(nsecs - @lock_start[tid]);
+	delete(@lock_start[tid]);
+	delete(@lock_addr[tid]);
+}
+
+END
+{
+	clear(@lock_start);
+	clear(@lock_addr);
+}

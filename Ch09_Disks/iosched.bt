@@ -1,0 +1,39 @@
+#!/usr/local/bin/bpftrace
+/*
+ * iosched - Summarize I/O scheduler latency.
+ *
+ * See BPF Performance Tools, Chapter 9, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/blkdev.h>
+
+BEGIN
+{
+	printf("Tracing block I/O schedulers. Hit Ctrl-C to end.\n");
+}
+
+kprobe:__elv_add_request
+{
+	@start[arg1] = nsecs;
+}
+
+kprobe:blk_start_request,
+kprobe:blk_mq_start_request
+/@start[arg0]/
+{
+	$r = (struct request *)arg0;
+	@usecs[$r->q->elevator->type->elevator_name] =
+	    hist((nsecs - @start[arg0]) / 1000);
+	delete(@start[arg0]);
+}
+
+END
+{
+	clear(@start);
+}

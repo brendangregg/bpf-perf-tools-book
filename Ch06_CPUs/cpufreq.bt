@@ -1,0 +1,36 @@
+#!/usr/local/bin/bpftrace
+/*
+ * cpufreq - Sample CPU frequency by process.
+ *
+ * See BPF Performance Tools, Chapter 6, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Sampling CPU freq system-wide & by process. Ctrl-C to end.\n");
+}
+
+tracepoint:power:cpu_frequency 
+{
+	@curfreq[cpu] = args->state;
+}
+
+profile:hz:100
+/@curfreq[cpu]/
+{
+	@system_mhz = lhist(@curfreq[cpu] / 1000, 0, 5000, 200);
+	if (pid) {
+		@process_mhz[comm] = lhist(@curfreq[cpu] / 1000, 0, 5000, 200);
+	}
+}
+
+END
+{
+	clear(@curfreq);
+}

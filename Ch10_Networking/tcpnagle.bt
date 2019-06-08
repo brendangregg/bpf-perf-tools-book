@@ -1,0 +1,50 @@
+#!/usr/local/bin/bpftrace
+/*
+ * tcpnagle - Trace TCP nagle usage and transmit delays.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing TCP nagle and xmit delays. Hit Ctrl-C to end.\n");
+	// from include/net/tcp.h; add more combinations if needed:
+	@flags[0x0] = "ON";
+	@flags[0x1] = "OFF";
+	@flags[0x2] = "CORK";
+	@flags[0x3] = "OFF|CORK";
+	@flags[0x4] = "PUSH";
+	@flags[0x5] = "OFF|PUSH";
+}
+
+kprobe:tcp_write_xmit
+{
+	@nagle[@flags[arg2]] = count();
+	@sk[tid] = arg0;
+}
+
+kretprobe:tcp_write_xmit
+/@sk[tid]/
+{
+	$inflight = retval & 0xff;
+	$sk = @sk[tid];
+	if ($inflight && !@start[$sk]) {
+		@start[$sk] = nsecs;
+	}
+	if (!$inflight && @start[$sk]) {
+		@blocked_us = hist((nsecs - @start[$sk]) / 1000);
+		delete(@start[$sk]);
+	}
+	delete(@sk[tid]);
+}
+
+END
+{
+	clear(@flags); clear(@start); clear(@sk);
+}

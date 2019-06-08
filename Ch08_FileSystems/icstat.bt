@@ -1,0 +1,35 @@
+#!/usr/local/bin/bpftrace
+/*
+ * icstat - Inode cache hit statistics.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+BEGIN
+{
+	printf("Tracing icache lookups... Hit Ctrl-C to end.\n");
+	printf("%10s %10s %5s\n", "REFS", "MISSES", "HIT%");
+}
+
+kretprobe:find_inode_fast
+{
+	@refs++;
+	if (retval == 0) {
+		@misses++;
+	}
+}
+
+interval:s:1
+{
+	$hits = @refs - @misses;
+	$percent = @refs > 0 ? 100 * $hits / @refs : 0;
+	printf("%10d %10d %4d%%\n", @refs, @misses, $percent);
+	clear(@refs);
+	clear(@misses);
+}

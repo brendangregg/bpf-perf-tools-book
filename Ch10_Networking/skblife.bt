@@ -1,0 +1,43 @@
+#!/usr/local/bin/bpftrace
+/*
+ * skblife - Lifespan of sk_buff as inter-stack latency.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+kprobe:kmem_cache_alloc,
+kprobe:kmem_cache_alloc_node
+{
+	$cache = arg0;
+	if ($cache == *kaddr("skbuff_fclone_cache") ||
+	    $cache == *kaddr("skbuff_head_cache")) {
+		@is_skb_alloc[tid] = 1;
+	}
+}
+
+kretprobe:kmem_cache_alloc,
+kretprobe:kmem_cache_alloc_node
+/@is_skb_alloc[tid]/
+{
+	delete(@is_skb_alloc[tid]);
+	@skb_birth[retval] = nsecs;
+}
+
+kprobe:kmem_cache_free
+/@skb_birth[arg1]/
+{
+	@skb_residency_nsecs = hist(nsecs - @skb_birth[arg1]);
+	delete(@skb_birth[arg1]);
+}
+
+END
+{
+	clear(@is_skb_alloc);
+	clear(@skb_birth);
+}

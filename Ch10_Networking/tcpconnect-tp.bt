@@ -1,0 +1,30 @@
+#!/usr/local/bin/bpftrace
+/*
+ * tcpconnect-tp - Trace TCP active connections (connect()) using tracepoints.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <net/tcp_states.h>
+#include <linux/socket.h>
+
+BEGIN
+{
+	printf("%-8s %-6s %-16s %-3s ", "TIME", "PID", "COMM", "IP");
+	printf("%-15s %-15s %-5s\n", "SADDR", "DADDR", "DPORT");
+}
+
+tracepoint:sock:inet_sock_set_state
+/args->oldstate == TCP_CLOSE && args->newstate == TCP_SYN_SENT/
+{
+        time("%H:%M:%S ");
+        printf("%-6d %-16s %-3d ", pid, comm, args->family == AF_INET ? 4 : 6);
+        printf("%-15s %-15s %-5d\n", ntop(args->family, args->saddr),
+            ntop(args->family, args->daddr), args->dport)
+}

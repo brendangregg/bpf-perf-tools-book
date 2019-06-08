@@ -1,0 +1,57 @@
+#!/usr/bin/env bpftrace
+/*
+ * dcsnoop	Trace directory entry cache (dcache) lookups.
+ *		For Linux, uses bpftrace and eBPF.
+ *
+ * This is a snapshot from https://github.com/iovisor/bpftrace.
+ * Refer to that repository for updated versions.
+ *
+ * This uses kernel dynamic tracing of kernel functions, lookup_fast() and
+ * d_lookup(), which will need to be modified to match kernel changes. See
+ * code comments.
+ *
+ * USAGE: dcsnoop.bt
+ *
+ * Copyright 2018 Netflix, Inc.
+ * Licensed under the Apache License, Version 2.0 (the "License")
+ *
+ * 08-Sep-2018	Brendan Gregg	Created this.
+ */
+
+#include <linux/fs.h>
+#include <linux/sched.h>
+
+// from fs/namei.c:
+struct nameidata {
+        struct path     path;
+        struct qstr     last;
+        // [...]
+};
+
+BEGIN
+{
+	printf("Tracing dcache lookups... Hit Ctrl-C to end.\n");
+	printf("%-8s %-6s %-16s %1s %s\n", "TIME", "PID", "COMM", "T", "FILE");
+}
+
+// comment out this block to avoid showing hits:
+kprobe:lookup_fast
+{
+	$nd = (struct nameidata *)arg0;
+	printf("%-8d %-6d %-16s R %s\n", elapsed / 1000000, pid, comm,
+	    str($nd->last.name));
+}
+
+kprobe:d_lookup
+{
+	$name = (struct qstr *)arg1;
+	@fname[tid] = $name->name;
+}
+
+kretprobe:d_lookup
+/@fname[tid]/
+{
+	printf("%-8d %-6d %-16s M %s\n", elapsed / 1000000, pid, comm,
+	    str(@fname[tid]));
+	delete(@fname[tid]);
+}

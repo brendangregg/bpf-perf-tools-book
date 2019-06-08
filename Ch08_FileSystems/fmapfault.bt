@@ -1,0 +1,21 @@
+#!/usr/local/bin/bpftrace
+/*
+ * fmapfault - Count file map faults.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <linux/mm.h>
+
+kprobe:filemap_fault
+{
+	$vf = (struct vm_fault *)arg0;
+	$file = $vf->vma->vm_file->f_path.dentry->d_name.name;
+	@[comm, str($file)] = count();
+}

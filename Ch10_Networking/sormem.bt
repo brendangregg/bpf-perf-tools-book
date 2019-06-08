@@ -1,0 +1,38 @@
+#!/usr/local/bin/bpftrace
+/*
+ * sormem - Show socket receive buffer usage and overflows.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+#include <net/sock.h>
+
+BEGIN
+{
+	printf("Tracing socket receive buffer size. Hit Ctrl-C to end.\n");
+}
+
+kprobe:sock_recvmsg
+{
+	$sock = ((struct socket *)arg0)->sk;
+	@rmem_alloc = hist($sock->sk_backlog.rmem_alloc.counter);
+	@rmem_limit = hist($sock->sk_rcvbuf & 0xffffffff);
+}
+
+tracepoint:sock:sock_rcvqueue_full
+{
+	printf("%s rmem_alloc %d > rcvbuf %d, skb size %d\n", probe,
+	    args->rmem_alloc, args->sk_rcvbuf, args->truesize);
+}
+
+tracepoint:sock:sock_exceed_buf_limit
+{
+	printf("%s rmem_alloc %d, allocated %d\n", probe,
+	    args->rmem_alloc, args->allocated);
+}

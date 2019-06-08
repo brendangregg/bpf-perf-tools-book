@@ -1,0 +1,38 @@
+#!/usr/local/bin/bpftrace
+/*
+ * readahead - Show read ahead hits and efficiency.
+ *
+ * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ *
+ * Copyright 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-iiiii
+ * When copying or porting, include this comment.
+ */
+
+kprobe:__do_page_cache_readahead    { @in_readahead[tid] = 1; }
+kretprobe:__do_page_cache_readahead { @in_readahead[tid] = 0; }
+
+kretprobe:__page_cache_alloc
+/@in_readahead[tid]/
+{
+	@birth[retval] = nsecs;
+	@rapages++;
+}
+
+kprobe:mark_page_accessed
+/@birth[arg0]/
+{
+	@age_ms = hist((nsecs - @birth[arg0]) / 1000000);
+	delete(@birth[arg0]);
+	@rapages--;
+}
+
+END
+{
+	printf("\nReadahead unused pages: %d\n", @rapages);
+	printf("\nReadahead used page age (ms):\n");
+	print(@age_ms); clear(@age_ms);
+	clear(@birth); clear(@in_readahead); clear(@rapages);
+}
