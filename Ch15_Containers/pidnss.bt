@@ -13,6 +13,7 @@
 
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
+#include <linux/utsname.h>
 #include <linux/pid_namespace.h>
 
 BEGIN
@@ -27,11 +28,11 @@ kprobe:finish_task_switch
 	$prev_pidns = $prev->nsproxy->pid_ns_for_children->ns.inum;
 	$curr_pidns = $curr->nsproxy->pid_ns_for_children->ns.inum;
 	if ($prev_pidns != $curr_pidns) {
-		@[$prev_pidns] = count();
+		@[$prev_pidns, $prev->nsproxy->uts_ns->name.nodename] = count();
 	}
 }
 
 END
 {
-	printf("Victim PID namespace switch counts:\n");
+	printf("\nVictim PID namespace switch counts [PIDNS, nodename]:\n");
 }
