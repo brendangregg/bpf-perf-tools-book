@@ -36,7 +36,8 @@ kprobe:ip6_datagram_connect
 			$port = ($s6->sin6_port >> 8) |
 			    (($s6->sin6_port << 8) & 0xff00);
 			printf("%-6d %-16s 6  %-16s %-5d\n", pid, comm,
-			    "(IPv6addr)", $port);
+			    ntop(AF_INET6, $s6->sin6_addr.in6_u.u6_addr8),
+			    $port);
 		}
 	}
 }

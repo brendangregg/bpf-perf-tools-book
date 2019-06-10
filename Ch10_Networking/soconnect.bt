@@ -57,13 +57,14 @@ tracepoint:syscalls:sys_exit_connect
 		$s = (struct sockaddr_in *)@sockaddr[tid];
 		$port = ($s->sin_port >> 8) | (($s->sin_port << 8) & 0xff00);
 		printf("%-16s %-5d %8d %s\n",
-		    ntop(AF_INET, $s->sin_addr.s_addr), $port, $dur_us,
-		    @err2str[- args->ret]);
+		    ntop(AF_INET, $s->sin_addr.s_addr),
+		    $port, $dur_us, @err2str[- args->ret]);
 	} else {
 		$s6 = (struct sockaddr_in6 *)@sockaddr[tid];
 		$port = ($s6->sin6_port >> 8) | (($s6->sin6_port << 8) & 0xff00);
 		printf("%-16s %-5d %8d %s\n",
-		    "(IPv6addr)", $port, $dur_us, @err2str[- args->ret]);
+		    ntop(AF_INET6, $s6->sin6_addr.in6_u.u6_addr8),
+		    $port, $dur_us, @err2str[- args->ret]);
 	}
 
 	delete(@sockaddr[tid]);
