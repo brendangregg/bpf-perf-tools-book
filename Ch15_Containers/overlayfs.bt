@@ -21,7 +21,7 @@ kprobe:ovl_read_iter
 
 kretprobe:ovl_read_iter
 /((task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/ {
-    $duration_us = (nsecs - @read_start[tid]) / 1000;                                                                                      
+    $duration_us = (nsecs - @read_start[tid]) / 1000;
     @read_latency_us = hist($duration_us);
     delete(@read_start[tid]);
 }

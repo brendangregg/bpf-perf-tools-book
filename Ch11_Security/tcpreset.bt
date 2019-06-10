@@ -27,7 +27,7 @@ kprobe:tcp_v4_send_reset
 	$skb = (sk_buff *)arg1;
 	$AF_INET = 2;
 
-	$tcp = (tcphdr *)($skb->head + $skb->transport_header); 
+	$tcp = (tcphdr *)($skb->head + $skb->transport_header);
 	$ip = (iphdr *)($skb->head + $skb->network_header);
 	$dport = ($tcp->dest >> 8) | (($tcp->dest << 8) & 0xff00);
 	$sport = ($tcp->source >> 8) | (($tcp->source << 8) & 0xff00);

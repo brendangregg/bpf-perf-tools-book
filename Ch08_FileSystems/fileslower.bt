@@ -18,7 +18,7 @@ BEGIN
 	printf("%-8s %-16s %-6s T %-7s %7s %s\n", "TIMEms", "COMM", "PID",
 	    "BYTES", "LATms", "FILE");
 }
-	
+
 kprobe:new_sync_read,
 kprobe:new_sync_write
 {

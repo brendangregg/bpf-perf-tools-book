@@ -16,7 +16,7 @@ BEGIN
 	printf("Sampling CPU freq system-wide & by process. Ctrl-C to end.\n");
 }
 
-tracepoint:power:cpu_frequency 
+tracepoint:power:cpu_frequency
 {
 	@curfreq[cpu] = args->state;
 }
