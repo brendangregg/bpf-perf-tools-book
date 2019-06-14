@@ -1,6 +1,6 @@
 #!/usr/local/bin/bpftrace
 /*
- * netxlat - Show net device transmit queue latency.
+ * nettxlat - Show net device transmission latency.
  *
  * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
  *
@@ -16,13 +16,12 @@ BEGIN
 	printf("Tracing net device xmit queue latency. Hit Ctrl-C to end.\n");
 }
 
-kprobe:dev_queue_xmit,
-kprobe:dev_queue_xmit_nit
+tracepoint:net:net_dev_start_xmit
 {
-	@start[arg0] = nsecs;
+	@start[args->skbaddr] = nsecs;
 }
 
-tracepoint:net:net_dev_start_xmit
+tracepoint:skb:consume_skb
 /@start[args->skbaddr]/
 {
 	@us = hist((nsecs - @start[args->skbaddr]) / 1000);
