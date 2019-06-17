@@ -31,9 +31,9 @@ kprobe:vfs_readv,
 kprobe:vfs_write,
 kprobe:vfs_writev
 {
-	$f = (struct file *)arg0;
-	$m = $f->f_inode->i_mode;
-	@[@type[$m & 0xf000], func, comm] = count();
+	$file = (struct file *)arg0;
+	$mode = $file->f_inode->i_mode;
+	@[@type[$mode & 0xf000], func, comm] = count();
 }
 
 END

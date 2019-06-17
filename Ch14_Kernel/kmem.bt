@@ -13,7 +13,7 @@
 
 BEGIN
 {
-	printf("Tracing kmem allocation stacks (kmalloc, kmem_cache_alloc).");
+	printf("Tracing kmem allocation stacks (kmalloc, kmem_cache_alloc). ");
 	printf("Hit Ctrl-C to end.\n");
 }
 

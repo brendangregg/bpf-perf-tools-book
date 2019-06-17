@@ -43,7 +43,7 @@ tracepoint:syscalls:sys_enter_connect
 /args->uservaddr->sa_family == AF_INET ||
     args->uservaddr->sa_family == AF_INET6/
 {
-	@sockaddr[tid] = (struct sockaddr *)*(ctx + 24); // args->uservaddr;
+	@sockaddr[tid] = args->uservaddr;
 	@start[tid] = nsecs;
 }
 

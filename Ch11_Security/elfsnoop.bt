@@ -30,7 +30,7 @@ kprobe:load_elf_binary
 kretprobe:load_elf_binary
 /@arg0[tid]/
 {
-	$bin = (linux_binprm *)@arg0[tid];
+	$bin = (struct linux_binprm *)@arg0[tid];
 	time("%H:%M:%S ");
 	printf("%-6d %-18s %-18s %-10s %-10d %3d\n", pid,
 	    str($bin->interp), str($bin->filename),

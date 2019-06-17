@@ -33,7 +33,7 @@ kretprobe:ieee80211_get_channel
 /retval/
 {
 	$ch = (struct ieee80211_channel *)retval;
-	$band = 0xff & *retval;	// XXX workaround, should be $ch->band;
+	$band = 0xff & *retval;	// $ch->band; workaround for #776
 	time("%H:%M:%S ");
 	printf("scanning channel %s freq %d: beacon_found %d\n",
 	    @band[$band], $ch->center_freq, $ch->beacon_found);
@@ -42,7 +42,6 @@ kretprobe:ieee80211_get_channel
 kprobe:ieee80211_scan_completed
 /@start/
 {
-	$hw = (struct ieee80211_hw *)arg0;
 	time("%H:%M:%S ");
 	printf("scan compeleted: %d ms\n", (nsecs - @start) / 1000000);
 	delete(@start);

@@ -15,10 +15,10 @@
 
 kprobe:add_to_page_cache_lru
 {
-	$a = (struct address_space *)arg1;
-	$m = $a->host->i_mode;
+	$as = (struct address_space *)arg1;
+	$mode = $as->host->i_mode;
 	// match block mode, uapi/linux/stat.h:
-	if ($m & 0x6000) {
+	if ($mode & 0x6000) {
 		@kb[comm] = sum(4);	// page size
 	}
 }

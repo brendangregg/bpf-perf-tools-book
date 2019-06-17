@@ -21,7 +21,7 @@
 
 kprobe:kmem_cache_alloc
 {
-	$cachep = (kmem_cache *)arg0;
+	$cachep = (struct kmem_cache *)arg0;
 	@[str($cachep->name)] = count();
 }
 

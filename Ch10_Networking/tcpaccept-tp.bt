@@ -16,16 +16,15 @@
 
 BEGIN
 {
-	printf("%-8s %-6s %-16s %-3s ", "TIME", "PID", "COMM", "IP");
-	printf("%-14s %-5s %-14s %-5s\n", "RADDR", "RPORT", "LADDR", "LPORT");
+	printf("%-8s %-3s %-14s %-5s %-14s %-5s\n", "TIME", "IP",
+	    "RADDR", "RPORT", "LADDR", "LPORT");
 }
 
 tracepoint:sock:inet_sock_set_state
 /args->oldstate == TCP_SYN_RECV && args->newstate == TCP_ESTABLISHED/
 {
 	time("%H:%M:%S ");
-	printf("%-6d %-16s %-3d ", pid, comm, args->family == AF_INET ? 4 : 6);
-	printf("%-14s %-5d %-14s %-5d\n",
+	printf("%-3d %-14s %-5d %-14s %-5d\n", args->family == AF_INET ? 4 : 6,
 	    ntop(args->family, args->daddr), args->dport,
 	    ntop(args->family, args->saddr), args->sport);
 }

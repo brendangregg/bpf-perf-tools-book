@@ -1,6 +1,6 @@
 #!/usr/local/bin/bpftrace
 /*
- * nettxlat - Show net device transmission latency.
+ * qdisc-tbl - Show qdisc TBF queue latency.
  *
  * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
  *
@@ -13,25 +13,19 @@
 
 BEGIN
 {
-	printf("Tracing net device xmit queue latency. Hit Ctrl-C to end.\n");
+	printf("Tracing qdisc tbf latency. Hit Ctrl-C to end.\n");
 }
 
-tracepoint:net:net_dev_start_xmit
+kprobe:tbf_enqueue
 {
-	@start[args->skbaddr] = nsecs;
+	@start[arg0] = nsecs;
 }
 
-tracepoint:skb:consume_skb
-/@start[args->skbaddr]/
+kretprobe:tbf_dequeue
+/@start[retval]/
 {
-	@us = hist((nsecs - @start[args->skbaddr]) / 1000);
-	delete(@start[args->skbaddr]);
-}
-
-tracepoint:net:net_dev_queue
-{
-	// avoid timestamp reuse:
-	delete(@start[args->skbaddr]);
+	@us = hist((nsecs - @start[retval]) / 1000);
+	delete(@start[retval]);
 }
 
 END

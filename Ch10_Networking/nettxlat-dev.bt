@@ -1,6 +1,6 @@
 #!/usr/local/bin/bpftrace
 /*
- * qdisctxlat - Show qdisc transmit queue latency.
+ * nettxlat-dev - Show net device transmission latency by device name.
  *
  * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
  *
@@ -12,35 +12,33 @@
  */
 
 #include <linux/skbuff.h>
+#include <linux/netdevice.h>
 
 BEGIN
 {
-	printf("Tracing qdisc xmit latency. Hit Ctrl-C to end.\n");
+	printf("Tracing net device xmit queue latency. Hit Ctrl-C to end.\n");
 }
 
-tracepoint:net:net_dev_queue
+tracepoint:net:net_dev_start_xmit
 {
 	@start[args->skbaddr] = nsecs;
 }
 
-kprobe:skb_segment    { @segment[tid] = @start[arg0]; }
-kretprobe:skb_segment { @segment[tid] = 0; }
-kretprobe:__alloc_skb
-/@segment[tid]/
-{
-	// for GSO, copy timestamps to each segmented skb
-	@start[retval] = @segment[tid];
-}
-
-tracepoint:net:net_dev_start_xmit
+tracepoint:skb:consume_skb
 /@start[args->skbaddr]/
 {
-	@us = hist((nsecs - @start[args->skbaddr]) / 1000);
+	$skb = (struct sk_buff *)args->skbaddr;
+	@us[$skb->dev->name] = hist((nsecs - @start[args->skbaddr]) / 1000);
+	delete(@start[args->skbaddr]);
+}
+
+tracepoint:net:net_dev_queue
+{
+	// avoid timestamp reuse:
 	delete(@start[args->skbaddr]);
 }
 
 END
 {
 	clear(@start);
-	clear(@segment);
 }
