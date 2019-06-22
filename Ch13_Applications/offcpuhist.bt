@@ -21,7 +21,7 @@ BEGIN
 kprobe:finish_task_switch
 {
 	// record previous thread sleep time
-	$prev = (task_struct *)arg0;
+	$prev = (struct task_struct *)arg0;
 	if ($1 == 0 || $prev->tgid == $1) {
 		@start[$prev->pid] = nsecs;
 	}

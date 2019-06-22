@@ -17,6 +17,6 @@ struct variable_partial {
 
 uprobe:/home/bgregg/Build/bash-4.4.18/bash:execute_function
 {
-	$var = (variable_partial *)arg0;
+	$var = (struct variable_partial *)arg0;
 	printf("function: %s\n", str($var->name));
 }

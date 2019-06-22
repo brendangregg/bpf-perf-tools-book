@@ -24,7 +24,7 @@ BEGIN
 tracepoint:syscalls:sys_enter_nanosleep
 /args->rqtp->tv_sec + args->rqtp->tv_nsec/
 {
-	$task = (task_struct *)curtask;
+	$task = (struct task_struct *)curtask;
 	time("%H:%M:%S ");
 	printf("%-6d %-16s %-6d %-16s %d.%03d\n", $task->real_parent->pid,
 	    $task->real_parent->comm, pid, comm,

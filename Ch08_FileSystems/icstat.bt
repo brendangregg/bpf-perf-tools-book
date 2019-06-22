@@ -33,3 +33,9 @@ interval:s:1
 	clear(@refs);
 	clear(@misses);
 }
+
+END
+{
+	clear(@refs);
+	clear(@misses);
+}

@@ -35,7 +35,8 @@ kprobe:scsi_init_io
 	@start[arg0] = nsecs;
 }
 
-kprobe:scsi_done
+kprobe:scsi_done,
+kprobe:scsi_mq_done
 /@start[arg0]/
 {
 	$cmnd = (struct scsi_cmnd *)arg0;

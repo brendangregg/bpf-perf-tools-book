@@ -24,7 +24,7 @@ BEGIN
 
 kprobe:tty_write
 {
-	$file = (file *)arg0;
+	$file = (struct file *)arg0;
 	// +3 skips "pts":
 	if (str($file->f_path.dentry->d_name.name) == str($1 + 3)) {
 		printf("%s", str(arg1, arg2));

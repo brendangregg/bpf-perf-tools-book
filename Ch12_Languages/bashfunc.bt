@@ -15,6 +15,6 @@
 
 uprobe:/home/bgregg/Build/bash-4.4.18/bash:execute_function
 {
-	$var = (variable *)arg0;
+	$var = (struct variable *)arg0;
 	printf("function: %s\n", str($var->name));
 }

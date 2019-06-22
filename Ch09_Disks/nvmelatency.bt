@@ -38,7 +38,7 @@ kprobe:nvme_setup_cmd
 		@start[arg1] = nsecs;
 		@cmd[arg1] = arg2;
 	} else {
-		@admin_commands++;
+		@admin_commands = count();
 	}
 }
 

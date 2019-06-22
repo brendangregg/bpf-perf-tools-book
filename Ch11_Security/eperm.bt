@@ -19,11 +19,13 @@ BEGIN
 tracepoint:raw_syscalls:sys_exit
 /args->ret == -1/
 {
-	@EACCESS[comm, ksym(*(kaddr("sys_call_table") + args->id * 8))]++;
+	@EACCESS[comm, ksym(*(kaddr("sys_call_table") + args->id * 8))] =
+	    count();
 }
 
 tracepoint:raw_syscalls:sys_exit
 /args->ret == -13/
 {
-	@EPERM[comm, ksym(*(kaddr("sys_call_table") + args->id * 8))]++;
+	@EPERM[comm, ksym(*(kaddr("sys_call_table") + args->id * 8))] =
+	    count();
 }

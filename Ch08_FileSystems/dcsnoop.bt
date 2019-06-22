@@ -51,7 +51,9 @@ kprobe:d_lookup
 kretprobe:d_lookup
 /@fname[tid]/
 {
-	printf("%-8d %-6d %-16s M %s\n", elapsed / 1000000, pid, comm,
-	    str(@fname[tid]));
+	if (retval == 0) {
+		printf("%-8d %-6d %-16s M %s\n", elapsed / 1000000, pid, comm,
+		    str(@fname[tid]));
+	}
 	delete(@fname[tid]);
 }

@@ -15,40 +15,44 @@
 #include <linux/pid_namespace.h>
 
 kprobe:ovl_read_iter
-/((task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/ {
-    @read_start[tid] = nsecs;
+/((struct task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/
+{
+	@read_start[tid] = nsecs;
 }
 
 kretprobe:ovl_read_iter
-/((task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/ {
-    $duration_us = (nsecs - @read_start[tid]) / 1000;
-    @read_latency_us = hist($duration_us);
-    delete(@read_start[tid]);
+/((struct task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/
+{
+	$duration_us = (nsecs - @read_start[tid]) / 1000;
+	@read_latency_us = hist($duration_us);
+	delete(@read_start[tid]);
 }
 
 kprobe:ovl_write_iter
-/((task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/ {
-    @write_start[tid] = nsecs;
+/((struct task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/
+{
+	@write_start[tid] = nsecs;
 }
 
 kretprobe:ovl_write_iter
-/((task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/ {
-    $duration_us = (nsecs - @write_start[tid]) / 1000;
-
-    @write_latency_us = hist($duration_us);
-    delete(@write_start[tid]);
+/((struct task_struct *)curtask)->nsproxy->pid_ns_for_children->ns.inum == $1/
+{
+	$duration_us = (nsecs - @write_start[tid]) / 1000;
+	@write_latency_us = hist($duration_us);
+	delete(@write_start[tid]);
 }
 
-interval:ms:1000 {
-    time("\n%H:%M:%S --------------------\n");
-    print(@write_latency);
-    print(@read_latency);
-    clear(@write_latency);
-    clear(@read_latency);
+interval:ms:1000
+{
+	time("\n%H:%M:%S --------------------\n");
+	print(@write_latency_us);
+	print(@read_latency_us);
+	clear(@write_latency_us);
+	clear(@read_latency_us);
 }
 
 END
 {
-    clear(@write_start);
-    clear(@read_start);
+	clear(@write_start);
+	clear(@read_start);
 }

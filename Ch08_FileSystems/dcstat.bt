@@ -19,13 +19,19 @@ BEGIN
 
 kprobe:lookup_fast { @hits++; }
 
-kretprobe:d_lookup { @misses++; }
+kretprobe:d_lookup /retval == 0/ { @misses++; }
 
 interval:s:1
 {
 	$refs = @hits + @misses;
 	$percent = $refs > 0 ? 100 * @hits / $refs : 0;
 	printf("%10d %10d %4d%%\n", $refs, @misses, $percent);
-	delete(@hits);
-	delete(@misses);
+	clear(@hits);
+	clear(@misses);
+}
+
+END
+{
+	clear(@hits);
+	clear(@misses);
 }

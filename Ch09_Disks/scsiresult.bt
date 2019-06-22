@@ -14,35 +14,51 @@
 BEGIN
 {
 	printf("Tracing scsi command results. Hit Ctrl-C to end.\n");
-	// from scsi/scsi.h:
-	@did[0x00] = "DID_OK";
-	@did[0x01] = "DID_NO_CONNECT";
-	@did[0x02] = "DID_BUS_BUSY";
-	@did[0x03] = "DID_TIME_OUT";
-	@did[0x04] = "DID_BAD_TARGET";
-	@did[0x05] = "DID_ABORT";
-	@did[0x06] = "DID_PARITY";
-	@did[0x07] = "DID_ERROR";
-	@did[0x08] = "DID_RESET";
-	@did[0x09] = "DID_BAD_INTR";
-	@did[0x0a] = "DID_PASSTHROUGH";
-	@did[0x0b] = "DID_SOFT_ERROR";
-	@did[0x0c] = "DID_IMM_RETRY";
-	@did[0x0d] = "DID_REQUEUE";
-	@did[0x0e] = "DID_TRANSPORT_DISRUPTED";
-	@did[0x0f] = "DID_TRANSPORT_FAILFAST";
-	@did[0x10] = "DID_TARGET_FAILURE";
-	@did[0x11] = "DID_NEXUS_FAILURE";
-	@did[0x12] = "DID_ALLOC_FAILURE";
-	@did[0x13] = "DID_MEDIUM_ERROR";
+
+	// host byte codes, from include/scsi/scsi.h:
+	@host[0x00] = "DID_OK";
+	@host[0x01] = "DID_NO_CONNECT";
+	@host[0x02] = "DID_BUS_BUSY";
+	@host[0x03] = "DID_TIME_OUT";
+	@host[0x04] = "DID_BAD_TARGET";
+	@host[0x05] = "DID_ABORT";
+	@host[0x06] = "DID_PARITY";
+	@host[0x07] = "DID_ERROR";
+	@host[0x08] = "DID_RESET";
+	@host[0x09] = "DID_BAD_INTR";
+	@host[0x0a] = "DID_PASSTHROUGH";
+	@host[0x0b] = "DID_SOFT_ERROR";
+	@host[0x0c] = "DID_IMM_RETRY";
+	@host[0x0d] = "DID_REQUEUE";
+	@host[0x0e] = "DID_TRANSPORT_DISRUPTED";
+	@host[0x0f] = "DID_TRANSPORT_FAILFAST";
+	@host[0x10] = "DID_TARGET_FAILURE";
+	@host[0x11] = "DID_NEXUS_FAILURE";
+	@host[0x12] = "DID_ALLOC_FAILURE";
+	@host[0x13] = "DID_MEDIUM_ERROR";
+
+	// status byte codes, from include/scsi/scsi_proto.h:
+	@status[0x00] = "SAM_STAT_GOOD";
+	@status[0x02] = "SAM_STAT_CHECK_CONDITION";
+	@status[0x04] = "SAM_STAT_CONDITION_MET";
+	@status[0x08] = "SAM_STAT_BUSY";
+	@status[0x10] = "SAM_STAT_INTERMEDIATE";
+	@status[0x14] = "SAM_STAT_INTERMEDIATE_CONDITION_MET";
+	@status[0x18] = "SAM_STAT_RESERVATION_CONFLICT";
+	@status[0x22] = "SAM_STAT_COMMAND_TERMINATED";
+	@status[0x28] = "SAM_STAT_TASK_SET_FULL";
+	@status[0x30] = "SAM_STAT_ACA_ACTIVE";
+	@status[0x40] = "SAM_STAT_TASK_ABORTED";
 }
 
 tracepoint:scsi:scsi_dispatch_cmd_done
 {
-	@[@did[args->result]] = count();
+	@[@host[(args->result >> 16) & 0xff], @status[args->result & 0xff]] =
+	    count();
 }
 
 END
 {
-	clear(@did);
+	clear(@status);
+	clear(@host);
 }
