@@ -16,8 +16,8 @@ kprobe:migrate_misplaced_page { @start[tid] = nsecs; }
 kretprobe:migrate_misplaced_page /@start[tid]/
 {
 	$dur = nsecs - @start[tid];
-	@ns = @ns + $dur;
-	@num = @num + 1;
+	@ns += $dur;
+	@num++;
 	delete(@start[tid]);
 }
 
