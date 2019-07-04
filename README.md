@@ -16,4 +16,8 @@ You may contribute updated versions of the tools to the updated/ directory as yo
 - opensnoop_redfrog11.bt: opensnoop for RedFrog release 11 onwards.
 - opensnoop_redfrog11_5.4.bt: opensnoop for RedFrog release 11 onwards, with Linux 5.4 onwards.
 
-By contributing updates to this repository, you agree that the publisher has the necessary permissions to include your updates in possible later editions of the book. Attribution will be given: make it clear in the PR what your name is. Note that the tools are deliberately short to serve as textbook examples and to simplify maintenance, and updates should not add functionality. It would be straightforward to add to these tools per-interval output, PID or latency filters, different modes of operation, etc, but it would no longer be suited for the book or this repository.
+By contributing updates to this repository, you agree that the publisher has the necessary permissions to include your updates in possible later editions of the book. Attribution will be given: make it clear in the PR what your name is. Note that the tools are deliberately short to serve as textbook examples and to simplify maintenance, and updates should not add functionality. For that, see the next section.
+
+## Enhanced tools
+
+A small selection of tools from this book has been added to the bpftrace and BCC repositories. It is expected that the BCC versions will be enhanced with various command line options. We are not planning to add any more of these tools to those repositories: they are limited to ensure that they can be well supported by the repository community.

@@ -4,11 +4,16 @@
  *
  * See BPF Performance Tools, Chapter 6, for an explanation of this tool.
  *
- * Copyright 2019 Brendan Gregg.
+ * This was inspired by the time_in_state BPF tool from Android by Connor
+ * O'Brien, with some initial work by Joel Fernandes.
+ *
+ * Copyright (c) 2019 Brendan Gregg.
  * Licensed under the Apache License, Version 2.0 (the "License").
  * This was originally created for the BPF Performance Tools book
  * published by Addison Wesley. ISBN-iiiii
  * When copying or porting, include this comment.
+ *
+ * 24-Apr-2019  Brendan Gregg   Created this.
  */
 
 BEGIN

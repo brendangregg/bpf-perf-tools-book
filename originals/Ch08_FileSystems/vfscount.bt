@@ -1,14 +1,30 @@
-#!/usr/local/bin/bpftrace
+#!/usr/bin/env bpftrace
 /*
- * vfscount - Count all VFS operations.
+ * vfscount	Count VFS calls ("vfs_*").
+ *		For Linux, uses bpftrace and eBPF.
  *
- * See BPF Performance Tools, Chapter 8, for an explanation of this tool.
+ * This is a snapshot from https://github.com/iovisor/bpftrace.
+ * Refer to that repository for updated versions.
  *
- * Copyright 2019 Brendan Gregg.
- * Licensed under the Apache License, Version 2.0 (the "License").
- * This was originally created for the BPF Performance Tools book
- * published by Addison Wesley. ISBN-iiiii
- * When copying or porting, include this comment.
+ * Written as a basic example of counting kernel functions.
+ *
+ * USAGE: vfscount.bt
+ *
+ * This is a bpftrace version of the bcc tool of the same name.
+ *
+ * Copyright 2018 Netflix, Inc.
+ * Licensed under the Apache License, Version 2.0 (the "License")
+ *
+ * 06-Sep-2018	Brendan Gregg	Created this.
  */
 
-kprobe:vfs_* { @[func] = count(); }
+BEGIN
+{
+	printf("Tracing VFS calls... Hit Ctrl-C to end.\n");
+
+}
+
+kprobe:vfs_*
+{
+	@[func] = count();
+}

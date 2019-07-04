@@ -4,12 +4,13 @@
 #
 # See BPF Performance Tools, Chapter 15, for an explanation of this tool.
 #
-# Copyright 2019 Brendan Gregg.
+# Copyright (c) 2019 Brendan Gregg.
 # Licensed under the Apache License, Version 2.0 (the "License").
 # This was originally created for the BPF Performance Tools book
 # published by Addison Wesley. ISBN-iiiii
 # When copying or porting, include this comment.
 #
+# 03-Feb-2019   Brendan Gregg   Created this.
 
 from __future__ import print_function
 from bcc import BPF

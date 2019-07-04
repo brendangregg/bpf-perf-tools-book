@@ -4,7 +4,7 @@
  *
  * See BPF Performance Tools, Chapter 7, for an explanation of this tool.
  *
- * Copyright 2019 Amer Ather.
+ * Copyright (c) 2019 Amer Ather.
  * Licensed under the Apache License, Version 2.0 (the "License").
  * This was originally created for the BPF Performance Tools book
  * published by Addison Wesley. ISBN-iiiii
