@@ -19,8 +19,8 @@
 BEGIN
 {
 	printf("Tracing sleeps. Hit Ctrl-C to end.\n");
-	printf("%-8s %-6s %-16s %-6s %-16s %s\n", "TIME", "PCOMM", "PPID",
-	    "COMM", "PID", "SECONDS");
+	printf("%-8s %-6s %-16s %-6s %-16s %s\n", "TIME", "PPID", "PCOMM",
+	    "PID", "COMM", "SECONDS");
 }
 
 tracepoint:syscalls:sys_enter_nanosleep

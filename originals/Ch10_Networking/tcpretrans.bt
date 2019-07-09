@@ -50,7 +50,6 @@ kprobe:tcp_retransmit_skb
 	$inet_family = $sk->__sk_common.skc_family;
 
 	if ($inet_family == AF_INET || $inet_family == AF_INET6) {
-		// initialize variable type:
 		$daddr = ntop(0);
 		$saddr = ntop(0);
 		if ($inet_family == AF_INET) {

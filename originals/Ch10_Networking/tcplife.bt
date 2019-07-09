@@ -43,7 +43,7 @@ kprobe:tcp_set_state
 	 */
 
 	// record first timestamp seen for this socket
-	if ($newstate < TCP_FIN_WAIT1 && !@birth[$sk]) {
+	if ($newstate < TCP_FIN_WAIT1 && @birth[$sk] == 0) {
 		@birth[$sk] = nsecs;
 	}
 
@@ -69,11 +69,20 @@ kprobe:tcp_set_state
 		}
 
 		$family = $sk->__sk_common.skc_family;
-		$laddr = $sk->__sk_common.skc_rcv_saddr;
-		$daddr = $sk->__sk_common.skc_daddr;
-		printf("%-5d %-10.10s %-15s %-5d %-15s %-6d ", $pid, $comm,
-		    ntop($family, $laddr), $lport,
-		    ntop($family, $daddr), $dport);
+		$saddr = ntop(0);
+		$daddr = ntop(0);
+		if ($family == AF_INET) {
+			$saddr = ntop(AF_INET, $sk->__sk_common.skc_rcv_saddr);
+			$daddr = ntop(AF_INET, $sk->__sk_common.skc_daddr);
+		} else {
+			// AF_INET6
+			$saddr = ntop(AF_INET6,
+			    $sk->__sk_common.skc_v6_rcv_saddr.in6_u.u6_addr8);
+			$daddr = ntop(AF_INET6,
+			    $sk->__sk_common.skc_v6_daddr.in6_u.u6_addr8);
+		}
+		printf("%-5d %-10.10s %-15s %-5d %-15s %-6d ", $pid,
+		    $comm, $saddr, $lport, $daddr, $dport);
 		printf("%5d %5d %d\n", $tp->bytes_acked / 1024,
 		    $tp->bytes_received / 1024, $delta_ms);
 
