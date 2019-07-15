@@ -1,6 +1,6 @@
 # BPF Performance Tools
 
-This is the official repository of BPF (eBPF) tools from the book [BPF Performance Tools: Linux and Application Observability](http://www.brendangregg.com/bpfperftools.html). The directories are:
+This is the official repository of BPF (eBPF) tools from the book [BPF Performance Tools: Linux and Application Observability](http://www.brendangregg.com/bpf-performance-tools-book.html). The directories are:
 
 - [originals](originals): The original published version of the tools.
 - [updated](updated): Updated versions of the tools.
