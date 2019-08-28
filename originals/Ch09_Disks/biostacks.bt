@@ -1,6 +1,6 @@
 #!/usr/local/bin/bpftrace
 /*
- * biostacks - Show disk I/O with initialization stacks.
+ * biostacks - Show disk I/O latency with initialization stacks.
  *
  * See BPF Performance Tools, Chapter 9, for an explanation of this tool.
  *
