@@ -13,35 +13,22 @@
  * 11-Apr-2019  Brendan Gregg   Created this.
  */
 
-#include <linux/fs.h>
+#include <net/sock.h>
 
-kprobe:sock_read_iter,
-kprobe:sock_write_iter
+kprobe:sock_recvmsg
 {
-	@kiocb[tid] = arg0;
+	$sock = (struct socket *)arg0;
+	$dport = $sock->sk->__sk_common.skc_dport;
+	$dport = ($dport >> 8) | (($dport << 8) & 0xff00);
+	@io[comm, pid, "read", $sock->sk->__sk_common.skc_prot->name, $dport] =
+	    count();
 }
 
-kretprobe:sock_read_iter
-/@kiocb[tid]/
+kprobe:sock_sendmsg
 {
-	$file = ((struct kiocb *)@kiocb[tid])->ki_filp;
-	$name = $file->f_path.dentry->d_name.name;
-	@io[comm, pid, "read", str($name)] = count();
-	@bytes[comm, pid, "read", str($name)] = sum(retval > 0 ? retval : 0);
-	delete(@kiocb[tid]);
-}
-
-kretprobe:sock_write_iter
-/@kiocb[tid]/
-{
-	$file = ((struct kiocb *)@kiocb[tid])->ki_filp;
-	$name = $file->f_path.dentry->d_name.name;
-	@io[comm, pid, "write", str($name)] = count();
-	@bytes[comm, pid, "write", str($name)] = sum(retval > 0 ? retval : 0);
-	delete(@kiocb[tid]);
-}
-
-END
-{
-	clear(@kiocb);
+	$sock = (struct socket *)arg0;
+	$dport = $sock->sk->__sk_common.skc_dport;
+	$dport = ($dport >> 8) | (($dport << 8) & 0xff00);
+	@io[comm, pid, "write", $sock->sk->__sk_common.skc_prot->name, $dport] =
+	    count();
 }

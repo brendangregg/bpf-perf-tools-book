@@ -13,14 +13,32 @@
  * 12-Apr-2019  Brendan Gregg   Created this.
  */
 
-kretprobe:sock_read_iter
-/retval >= 0/
+#include <linux/fs.h>
+#include <net/sock.h>
+
+kprobe:sock_recvmsg,
+kprobe:sock_sendmsg
 {
-	@read_bytes[comm] = hist(retval);
+	@socket[tid] = arg0;
 }
 
-kretprobe:sock_write_iter
-/retval >= 0/
+kretprobe:sock_recvmsg
 {
-	@write_bytes[comm] = hist(retval);
+	if (retval < 0x7fffffff) {
+		@read_bytes[comm] = hist(retval);
+	}
+	delete(@socket[tid]);
+}
+
+kretprobe:sock_sendmsg
+{
+	if (retval < 0x7fffffff) {
+		@write_bytes[comm] = hist(retval);
+	}
+	delete(@socket[tid]);
+}
+
+END
+{
+	clear(@socket);
 }
