@@ -25,7 +25,6 @@ BEGIN
 	@sig[4] = "SIGILL";
 	@sig[5] = "SIGTRAP";
 	@sig[6] = "SIGABRT";
-	@sig[6] = "SIGIOT";
 	@sig[7] = "SIGBUS";
 	@sig[8] = "SIGFPE";
 	@sig[9] = "SIGKILL";
@@ -48,6 +47,7 @@ BEGIN
 	@sig[26] = "SIGVTALRM";
 	@sig[27] = "SIGPROF";
 	@sig[28] = "SIGWINCH";
+	@sig[29] = "SIGIO";
 	@sig[30] = "SIGPWR";
 	@sig[31] = "SIGSYS";
 }
