@@ -10,6 +10,8 @@ These tools are documented in the book.
 #### Tools:
 <center><a href="images/bpf_performance_tools_2019.png"><img src="images/bpf_performance_tools_2019.png" border=0 width=700></a></center>
 
+In red are many of the new tools developed for the book, which are all in this repository. In black are the prior tools from BCC and bpftrace, many of which are also covered in the book.
+
 ## Updated tools
 
 You may contribute updated versions of the tools to the updated/ directory as you find they need fixes for newer kernels or other distributions (which can change CONFIG options or library paths, changing the probes). Please avoid ifdef's where possible, and create separate tools as they can be tested and maintained independently. Filename examples:
