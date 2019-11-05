@@ -17,4 +17,4 @@ These directories contain the original and updated BPF (eBPF) tools for the book
 
 The tools are documented in the book.
 
-All the original as-published source is in the [/original](/original) directory. See the main [../README.md](README) for instructions on contributing updates.
+All the original as-published source is in the [/originals](/originals) directory. See the main [../README.md](README) for instructions on contributing updates.
