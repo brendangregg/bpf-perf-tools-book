@@ -1,0 +1,99 @@
+#!/usr/local/bin/bpftrace
+/*
+ * udplife - Trace UDP session lifespans with connection details.
+ *
+ * Based on tcplife(8) from BPF Performance Tools (ISBN-13: 9780136554820),
+ * and is a solution to Chapter 10 exercise 6.
+ *
+ * Copyright (c) 2020 Netflix
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * 28-Jan-2020  Brendan Gregg   Created this for Keerti.
+ */
+
+#include <net/sock.h>
+#include <linux/socket.h>
+
+BEGIN
+{
+	printf("%-5s %-10s %-15s %-5s %-15s %-5s ", "PID", "COMM",
+	    "LADDR", "LPORT", "RADDR", "RPORT");
+	printf("%6s %6s %s\n", "TX_B", "RX_B", "MS");
+}
+
+kprobe:ip4_datagram_connect,
+kprobe:ip6_datagram_connect
+{
+	$sk = (struct sock *)arg0;
+	@birth[$sk] = nsecs;
+	@skpid[$sk] = pid;
+	@skcomm[$sk] = comm;
+}
+
+/*
+ * struct udp_sock does not have byte metrics, so we must trace send/recv.
+ * This costs overhead.
+ */
+kprobe:udp_sendmsg
+{
+	@tx[(struct sock *)arg0] += arg2;
+}
+kprobe:udp_recvmsg
+{
+	@udp_recv_sk[tid] = (struct sock *)arg0;
+}
+kretprobe:udp_recvmsg
+/@udp_recv_sk[tid]/
+{
+	if (retval > 0) {
+		@rx[@udp_recv_sk[tid]] += retval;
+	}
+	delete(@udp_recv_sk[tid]);
+}
+
+kprobe:udp_destruct_sock
+/@birth[(struct sock *)arg0]/
+{
+	$sk = (struct sock *)arg0;
+
+	$delta_ms = (nsecs - @birth[$sk]) / 1000000;
+	$lport = $sk->__sk_common.skc_num;
+	$dport = $sk->__sk_common.skc_dport;
+	$dport = ($dport >> 8) | (($dport << 8) & 0xff00);
+	$pid = @skpid[$sk];
+	$comm = @skcomm[$sk];
+	if ($comm == "") {
+		// not cached, use current task
+		$pid = pid;
+		$comm = comm;
+	}
+
+	$family = $sk->__sk_common.skc_family;
+	$saddr = ntop(0);
+	$daddr = ntop(0);
+	if ($family == AF_INET) {
+		$saddr = ntop(AF_INET, $sk->__sk_common.skc_rcv_saddr);
+		$daddr = ntop(AF_INET, $sk->__sk_common.skc_daddr);
+	} else {
+		// AF_INET6
+		$saddr = ntop(AF_INET6,
+		    $sk->__sk_common.skc_v6_rcv_saddr.in6_u.u6_addr8);
+		$daddr = ntop(AF_INET6,
+		    $sk->__sk_common.skc_v6_daddr.in6_u.u6_addr8);
+	}
+	printf("%-5d %-10.10s %-15s %-5d %-15s %-5d ", $pid,
+	    $comm, $saddr, $lport, $daddr, $dport);
+	printf("%6d %6d %d\n", @tx[$sk], @rx[$sk], $delta_ms);
+
+	delete(@birth[$sk]);
+	delete(@skpid[$sk]);
+	delete(@skcomm[$sk]);
+	delete(@tx[$sk]);
+	delete(@rx[$sk]);
+}
+
+END
+{
+	clear(@birth); clear(@skpid); clear(@skcomm);
+	clear(@tx); clear(@rx); clear(@udp_recv_sk);
+}

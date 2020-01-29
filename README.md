@@ -4,6 +4,7 @@ This is the official repository of BPF (eBPF) tools from the book [BPF Performan
 
 - [originals](originals): The original published version of the tools.
 - [updated](updated): Updated versions of the tools.
+- [exercises](exercises): Exercise solutions.
 
 These tools are documented in the book.
 
