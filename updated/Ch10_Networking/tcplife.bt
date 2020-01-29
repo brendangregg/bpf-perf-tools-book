@@ -43,7 +43,7 @@ kprobe:tcp_set_state
 	 */
 
 	// record first timestamp seen for this socket
-	if ($newstate < TCP_FIN_WAIT1 && @birth[$sk] == 0) {
+	if ($newstate < TCP_FIN_WAIT1 && !@birth[$sk]) {
 		@birth[$sk] = nsecs;
 	}
 
