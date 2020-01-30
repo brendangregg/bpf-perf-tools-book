@@ -62,12 +62,6 @@ kprobe:udp_destruct_sock
 	$dport = ($dport >> 8) | (($dport << 8) & 0xff00);
 	$pid = @skpid[$sk];
 	$comm = @skcomm[$sk];
-	if ($comm == "") {
-		// not cached, use current task
-		$pid = pid;
-		$comm = comm;
-	}
-
 	$family = $sk->__sk_common.skc_family;
 	$saddr = ntop(0);
 	$daddr = ntop(0);
@@ -81,6 +75,7 @@ kprobe:udp_destruct_sock
 		$daddr = ntop(AF_INET6,
 		    $sk->__sk_common.skc_v6_daddr.in6_u.u6_addr8);
 	}
+
 	printf("%-5d %-10.10s %-15s %-5d %-15s %-5d ", $pid,
 	    $comm, $saddr, $lport, $daddr, $dport);
 	printf("%6d %6d %d\n", @tx[$sk], @rx[$sk], $delta_ms);
