@@ -24,8 +24,10 @@ BEGIN
 kprobe:ip4_datagram_connect,
 kprobe:ip6_datagram_connect
 {
+	$sk = (struct sock *)arg0;
 	$sa = (struct sockaddr *)arg1;
-	if ($sa->sa_family == AF_INET || $sa->sa_family == AF_INET6) {
+	if (($sa->sa_family == AF_INET || $sa->sa_family == AF_INET6) &&
+	    $sk->sk_protocol == IPPROTO_UDP) {
 		time("%H:%M:%S ");
 		if ($sa->sa_family == AF_INET) {
 			$s = (struct sockaddr_in *)arg1;
