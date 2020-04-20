@@ -1,0 +1,45 @@
+#!/usr/local/bin/bpftrace
+/*
+ * udpconnect - Trace new UDP connections from localhost.
+ *
+ * See BPF Performance Tools, Chapter 10, for an explanation of this tool.
+ *
+ * Copyright (c) 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-13: 9780136554820
+ * When copying or porting, include this comment.
+ *
+ * 20-Apr-2019  Brendan Gregg   Created this.
+ */
+
+#include <net/sock.h>
+
+BEGIN
+{
+	printf("%-8s %-6s %-16s %-2s %-16s %-5s\n", "TIME", "PID", "COMM",
+	    "IP", "RADDR", "RPORT");
+}
+
+kprobe:ip4_datagram_connect,
+kprobe:ip6_datagram_connect
+{
+	$sa = (struct sockaddr *)arg1;
+	if ($sa->sa_family == AF_INET || $sa->sa_family == AF_INET6) {
+		time("%H:%M:%S ");
+		if ($sa->sa_family == AF_INET) {
+			$s = (struct sockaddr_in *)arg1;
+			$port = ($s->sin_port >> 8) |
+			    (($s->sin_port << 8) & 0xff00);
+			printf("%-6d %-16s 4  %-16s %-5d\n", pid, comm,
+			    ntop(AF_INET, $s->sin_addr.s_addr), $port);
+		} else {
+			$s6 = (struct sockaddr_in6 *)arg1;
+			$port = ($s6->sin6_port >> 8) |
+			    (($s6->sin6_port << 8) & 0xff00);
+			printf("%-6d %-16s 6  %-16s %-5d\n", pid, comm,
+			    ntop(AF_INET6, $s6->sin6_addr.in6_u.u6_addr8),
+			    $port);
+		}
+	}
+}
