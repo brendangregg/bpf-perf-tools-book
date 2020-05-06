@@ -42,6 +42,8 @@ bpf_text = """
 #include <linux/fs.h>
 #include <linux/fdtable.h>
 
+const int MAP_ANON = 0x20;
+
 struct mmap_data_t {
     u64 len;
     u64 prot;
@@ -53,42 +55,13 @@ struct mmap_data_t {
 };
 BPF_PERF_OUTPUT(mmap_events);
 
-struct fdkey_t {
-    int pid;
-    int fd;
-};
-
-BPF_HASH(fd2file, struct fdkey_t, struct file *);
-
-// cache pid+FD -> file for later lookup
-// TODO: use a task->files->fdt->fd[] lookup in the mmap tracepoint instead.
-int kprobe__fd_install(struct pt_regs *ctx, int fd, struct file *file)
-{
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    struct fdkey_t key = {.fd = fd, .pid = pid};
-    fd2file.update(&key, &file);
-    return 0;
-}
-
-// assume this and other events are in PID context
-int kprobe____close_fd(struct pt_regs *ctx, struct files_struct *files, int fd)
-{
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    struct fdkey_t key = {.fd = fd, .pid = pid};
-    fd2file.delete(&key);
-    return 0;
-}
-
 TRACEPOINT_PROBE(syscalls, sys_enter_mmap) {
-    struct task_struct *task;
-    struct file **fpp, *file;
+    struct task_struct *task = (struct task_struct *) bpf_get_current_task();
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    struct fdkey_t key = {.fd = args->fd, .pid = pid};
 
-    fpp = fd2file.lookup(&key);
-    if (fpp == 0)
+    if (args->flags & MAP_ANON) {
         return 0;
-    file = *fpp;
+    }
 
     struct mmap_data_t data = {
         .len = args->len,
@@ -99,10 +72,21 @@ TRACEPOINT_PROBE(syscalls, sys_enter_mmap) {
     };
     bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
-    struct dentry *de = file->f_path.dentry;
+    struct files_struct *files;
+    struct fdtable *fdt;
+    struct files **fd;
+    struct file *file;
+    struct dentry *dentry;
     struct qstr d_name = {};
-    bpf_probe_read(&d_name, sizeof(d_name), (void *)&de->d_name);
+
+    bpf_probe_read(&files, sizeof(files), &task->files);
+    bpf_probe_read(&fdt, sizeof(fdt), &files->fdt);
+    bpf_probe_read(&fd, sizeof(fd), &fdt->fd);
+    bpf_probe_read(&file, sizeof(file), &(fd[args->fd]));
+    bpf_probe_read(&dentry, sizeof(dentry), &file->f_path.dentry);
+    bpf_probe_read(&d_name, sizeof(d_name), &dentry->d_name);
     bpf_probe_read(&data.path, sizeof(data.path), d_name.name);
+
     mmap_events.perf_submit(args, &data, sizeof(data));
 
     return 0;
