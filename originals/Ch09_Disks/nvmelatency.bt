@@ -53,7 +53,7 @@ kprobe:nvme_complete_rq
 	$opcode = $cmd->common.opcode & 0xff;
 	@usecs[$disk->disk_name, @ioopcode[$opcode]] =
 	    hist((nsecs - @start[arg0]) / 1000);
-	delete(@start[tid]); delete(@cmd[tid]);
+	delete(@start[arg0]); delete(@cmd[arg0]);
 }
 
 END
