@@ -1,0 +1,62 @@
+#!/usr/local/bin/bpftrace
+/*
+ * nvmelatency - Summarise NVME driver command latency.
+ *
+ * See BPF Performance Tools, Chapter 9, for an explanation of this tool.
+ *
+ * Copyright (c) 2019 Brendan Gregg.
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * This was originally created for the BPF Performance Tools book
+ * published by Addison Wesley. ISBN-13: 9780136554820
+ * When copying or porting, include this comment.
+ *
+ * 21-Mar-2019  Brendan Gregg   Created this.
+ */
+
+#include <linux/blkdev.h>
+#include <linux/nvme.h>
+
+BEGIN
+{
+	printf("Tracing nvme command latency. Hit Ctrl-C to end.\n");
+	// from linux/nvme.h:
+	@ioopcode[0x00] = "nvme_cmd_flush";
+	@ioopcode[0x01] = "nvme_cmd_write";
+	@ioopcode[0x02] = "nvme_cmd_read";
+	@ioopcode[0x04] = "nvme_cmd_write_uncor";
+	@ioopcode[0x05] = "nvme_cmd_compare";
+	@ioopcode[0x08] = "nvme_cmd_write_zeroes";
+	@ioopcode[0x09] = "nvme_cmd_dsm";
+	@ioopcode[0x0d] = "nvme_cmd_resv_register";
+	@ioopcode[0x0e] = "nvme_cmd_resv_report";
+	@ioopcode[0x11] = "nvme_cmd_resv_acquire";
+	@ioopcode[0x15] = "nvme_cmd_resv_release";
+}
+
+kprobe:nvme_setup_cmd
+{
+	$req = (struct request *)arg1;
+	if ($req->rq_disk != 0) {
+		@start[arg1] = nsecs;
+		@cmd[arg1] = arg2;
+	} else {
+		@admin_commands = count();
+	}
+}
+
+kprobe:nvme_complete_rq
+/@start[arg0]/
+{
+	$req = (struct request *)arg0;
+	$cmd = (struct nvme_command *)@cmd[arg0];
+	$disk = $req->rq_disk;
+	$opcode = $cmd->common.opcode & 0xff;
+	@usecs[$disk->disk_name, @ioopcode[$opcode]] =
+	    hist((nsecs - @start[arg0]) / 1000);
+	delete(@start[arg0]); delete(@cmd[arg0]);
+}
+
+END
+{
+	clear(@ioopcode); clear(@start); clear(@cmd);
+}
